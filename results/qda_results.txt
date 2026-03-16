@@ -1,0 +1,2 @@
+QDA (reg=0.1) Comparison:
+Test Accuracy: 0.8275
