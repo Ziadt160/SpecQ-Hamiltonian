@@ -1,0 +1,4 @@
+20 Newsgroups Binary Classification (alt.atheism vs soc.religion.christian)
+Dimensions: 16 (N=4)
+Classical SIM Accuracy: 0.7848
+Exact SIM Accuracy: 0.8330

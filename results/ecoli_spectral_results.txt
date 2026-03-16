@@ -1,0 +1,4 @@
+E. Coli N=6 Experiment
+Spectral Top-256 Acc: 0.9225
+Random Top-256 Acc: 0.8709
+Improvement: 0.0516
