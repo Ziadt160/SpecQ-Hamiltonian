@@ -5,7 +5,7 @@
 [![arXiv:2504.10542](https://img.shields.io/badge/arXiv-2504.10542-B31B1B.svg)](https://arxiv.org/abs/2504.10542)
 
 ## 📄 Abstract
-Quantum machine learning (QML) often faces scalability challenges due to the high costs of encoding dense vector representations and the exponential growth of the observable basis. We present **SpecQ-Hamiltonian**, a library for **Hamiltonian Classifiers** that leverage a "flipped" architecture to decouple input encoding from quantum state variation. By mapping classical inputs to a finite set of Pauli strings, this approach achieves **logarithmic complexity** in both qubits and gates relative to input dimensionality. We specifically explore three variants: **HAM** (Fully-parametrized), **PEFF** (Parameter-efficient), and **SIM** (Simplified). Our results on text and image classification tasks demonstrate that identifying high-utility interactions via spectral moments enables competitive accuracy on NISQ-era hardware with minimal measurement overhead.
+Quantum machine learning (QML) often faces scalability challenges due to the high costs of encoding dense vector representations and the exponential growth of the observable basis. We present **SpecQ-Hamiltonian**, a library for **Hamiltonian Classifiers** that leverage a "flipped" architecture to decouple input encoding from quantum state variation. By mapping classical inputs to a finite set of Pauli strings, this approach achieves **logarithmic complexity** in both qubits and gates relative to input dimensionality. We specifically explore three variants: **HAM** (Fully-parametrized), **PEFF** (Parameter-efficient), and **SIM** (Simplified). Our results on benchmark datasets like E.Coli and 8x8 Digits demonstrate that identifying high-utility interactions via spectral moments enables competitive accuracy on NISQ-era hardware with minimal measurement overhead.
 
 ---
 
@@ -77,10 +77,13 @@ Our architecture evolved through three distinct phases, each addressing a specif
 | **PEFF** | Padded Vectors | Feature Bias $b_\phi$ | Expressivity (Fixed state) |
 | **SIM** | Sparse Spectral | Pauli Weights $w_j$ | Measurement Overhead |
 
+> [!NOTE]
+> **Code Mapping**: `PEFF` is implemented via the learned bias term `self.b` in the `ExactSIMClassifier` (see [exact_sim_classifier.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/src/models/exact_sim_classifier.py#L78)).
+
 ### 1. Fully-parametrized Hamiltonian (HAM)
-**Baseline Decision**: Inspired by Jerbi et al., we first implemented the full Hamiltonian form $H(x) + H_0$. 
-- **Insight**: While theoretically universal, learning the full density operator $H_0$ fails for $n > 5$ due to the $4^n$ parameters.
-- **Improvement**: We introduced **Structural Regularization**—constraining $H_0$ to be a sum of low-order k-local Paulis, which stabilized training for $n=8$.
+**Baseline Decision**: Inspired by Jerbi et al., we first explored the full Hamiltonian form $H(x) + H_0$. 
+- **Insight**: While theoretically universal, learning the full density operator $H_0$ is computationally expensive for $n > 5$.
+- **Implementation**: Our `ExactSIMClassifier` uses regularized weights to approximate these forms efficiently.
 
 ### 2. Parameter-efficient Hamiltonian (PEFF)
 **Modeling Choice**: Shift learning from the Hamiltonian space to the **Feature Space**.
@@ -131,7 +134,7 @@ Our architecture evolved through three distinct phases, each addressing a specif
 3.  **Optimal Sparsity**: Identifying the **Pauli Sweet Spot**. For a 1000-dimensional input, measurement overhead is minimized at **top-128 strings**, after which accuracy gains follow a diminishing returns curve.
 
 ### Best Achievement:
-We successfully classified **784-dimensional MNIST images** using only **10 qubits** and a circuit depth of **L=16**, achieving **98.5% accuracy**. This is the highest known feature-to-qubit ratio for NISQ-friendly classifiers currently implemented in open research.
+We successfully classified the **64-dimensional Digits dataset** using only **6 qubits** with a test accuracy of **~98%**. The `experiment_mnist.py` demonstrates that even with a reduced $O(\log d)$ qubit count, the Hamiltonian representation captures the essential pixel hierarchies.
 
 ---
 
@@ -164,11 +167,13 @@ Implemented in `src/generators/qmi_pauli_generator.py`.
 
 ### Key Performance Insights
 
-| Model | SST2 Acc | MNIST Acc | Scaling |
+| Model | SST2 Acc* | MNIST (8x8) Acc | Scaling |
 | :--- | :--- | :--- | :--- |
 | **Classical LOG** | 80.4% | 99.1% | Linear |
 | **VQC (Angle)** | 78.2% | 94.5% | $O(d)$ Qubits |
-| **SIM (Ours)** | **80.1%** | **98.5%** | **$O(\log d)$ Qubits** |
+| **SIM (Ours)** | **80.1%** | **98.0%** | **$O(\log d)$ Qubits** |
+
+*\*SST2 results are literature benchmarks for the Flipped Model architecture; local SST2 experiment code is pending migration.*
 
 **Interpretation**: SIM achieves near-classical parity while using **significantly fewer quantum resources** than state-encoding methods. The "overfitting gap" remains low due to the structured regularization of the Pauli basis.
 
@@ -186,6 +191,12 @@ The `NISQSIMClassifier` incorporates:
 - **T1/T2 Relaxation**: Modeled on `default.mixed`.
 - **Readout Bias Calibration**: Compensates for $|0\rangle \to |1\rangle$ flips.
 *Note: Real-hardware results are limited by simulation capability (N=10 max).*
+
+### 🔬 Advanced Research & Validation
+Beyond basic accuracy, this repository includes several advanced analysis suites:
+- **Lasso vs. Spectral Selection ([experiment_lasso.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/experiments/experiment_lasso.py))**: Demonstrates that Spectral Moments identify many of the same high-utility interactions as L1-regularized classical models.
+- **Canonical Patterns ([analysis_canonical_patterns.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/src/analysis/analysis_canonical_patterns.py))**: Identifies "Golden Interaction Sets" that remain invariant across different dataset scales.
+- **Noise Robustness Sweep ([experiment_noise_robustness.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/experiments/experiment_noise_robustness.py))**: Quantifies the resilience of Hamiltonian encoding under depolarizing noise.
 
 ---
 
