@@ -10,6 +10,9 @@ from ..utils.data_loader import load_20newsgroups_projected
 from ..models.exact_sim_classifier import ExactSIMClassifier
 from ..generators.spectral_pauli_generator import generate_spectral_pauli_strings
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def train_model_k(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, k):
     print(f"\n--- Training Top-{k} (Terms: {len(pauli_strings)}) ---")
     

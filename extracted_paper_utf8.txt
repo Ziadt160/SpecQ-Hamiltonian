@@ -1,0 +1,1519 @@
+An Efficient Quantum Classifier Based on Hamiltonian Representations
+Federico Tiblias1,3, Anna Schroeder2,3,5,
+Yue Zhang4, Mariami Gachechiladze2,3, and Iryna Gurevych1,3
+1 Ubiquitous Knowledge Processing Lab (UKP Lab), Hessian Center for AI (hessian.AI)
+2 Quantum Computing Group
+3 Department of Computer Science, Technical University of Darmstadt
+4 School of Engineering, Westlake University
+5 Merck KGaA, Darmstadt, Germany
+Abstract
+Quantum machine learning (QML) is a disci-
+pline that seeks to transfer the advantages of
+quantum computing to data-driven tasks. How-
+ever, many studies rely on toy datasets or heavy
+feature reduction, raising concerns about their
+scalability. Progress is further hindered by hard-
+ware limitations and the significant costs of
+encoding dense vector representations on quan-
+tum devices. To address these challenges, we
+propose an efficient approach called Hamilto-
+nian classifier that circumvents the costs asso-
+ciated with data encoding by mapping inputs
+to a finite set of Pauli strings and computing
+predictions as their expectation values. In addi-
+tion, we introduce two classifier variants with
+different scaling in terms of parameters and
+sample complexity. We evaluate our approach
+on text and image classification tasks, against
+well-established classical and quantum mod-
+els. The Hamiltonian classifier delivers per-
+formance comparable to or better than these
+methods. Notably, our method achieves log-
+arithmic complexity in both qubits and quan-
+tum gates, making it well-suited for large-scale,
+real-world applications. We make our imple-
+mentation available on GitHub1.
+1 Introduction
+In recent years, interest in quantum computing has
+grown significantly due to the provable advantages
+in computational complexity and memory usage
+some algorithms exhibit over their best classical
+analogues (Nielsen and Chuang, 2000; Quetschlich
+et al., 2024; Biamonte et al., 2017). For instance,
+efficient algorithms exist that can solve problems
+such as integer factorization (Shor, 1997), Fourier
+transform (Camps et al., 2021), and specific in-
+stances of matrix inversion (Harrow et al., 2009)
+with an exponential speedup over the fastest known
+classical methods. Other notable results include
+1https://github.com/UKPLab/arxiv2025-ham-classifier
+Input
+encoding
+Parametrized
+transformations Measurement
+Awesome
+movie!
+Awesome
+movie!
+Awesome
+movie!
+Figure 1: (Top) Schema of a flipped model: data is
+represented as a measurement avoiding input encod-
+ing. (Bottom) The proposed input-to-measurement map-
+ping: data is vectorized, mapped to a Hamiltonian via
+outer product, decomposed into a small number of Pauli
+strings, and recomposed into a simplified Hamiltonian
+Grover’s algorithm, which performs an unstruc-
+tured search achieving a O(√n) time complexity,
+a quadratic improvement over the fastest classical
+approach that scales as O(n) (Grover, 1996). In
+parallel with these theoretical developments, the
+size of publicly accessible quantum machines has
+been steadily growing, and several companies have
+begun offering commercial cloud access to these
+devices (Yang et al., 2023).
+Quantum machine learning is an offshoot of
+quantum computing that seeks to extend its ad-
+vantages to data-driven methods. The leading
+paradigm revolves around variational quantum cir-
+cuits (VQCs), quantum algorithms whose parame-
+ters can be adjusted with classical optimization to
+solve a specific problem (Cerezo et al., 2021). This
+approach is sometimes referred to as quantum neu-
+ral networks given the similarities with the classical
+counterpart (Farhi and Neven, 2018; Killoran et al.,
+2019). Prior works have found some evidence that
+1
+arXiv:2504.10542v1  [quant-ph]  13 Apr 2025
+QML algorithms can offer improvements over their
+classical analogues in terms of capacity (Abbas
+et al., 2021), expressive power (Du et al., 2020),
+and generalization (Caro et al., 2022).
+Despite the advancements of VQCs, a large-
+scale demonstration of advantage - the ability of
+a quantum computer to solve a problem faster,
+with fewer resources or better performance than
+any classical counterpart - remains out of reach
+for QML algorithms. Current quantum machines,
+referred to as Noisy Intermediate-Scale Quantum
+(NISQ) devices (Preskill, 2018), are restricted both
+in size and complexity of the operations they can
+perform (Zaman et al., 2023). Qubits, the basic
+units of quantum computation, are hard to main-
+tain in a state useful for computation, and scaling
+quantum processors to a size suitable for QML
+remains a significant challenge. Moreover, the
+widespread use of dense and unstructured vector
+representations in modern machine learning archi-
+tectures (Bengio et al., 2000) makes their transla-
+tion into quantum equivalents challenging. Specif-
+ically, the processes of loading data onto a quan-
+tum device, known as encoding, and extracting re-
+sults from it, referred to as measurement, can scale
+rapidly in terms of qubit requirements or compu-
+tational costs (Schuld and Killoran, 2022). These
+costs may grow prohibitively with input size, po-
+tentially negating any quantum advantage. As a
+result, researchers are often forced to down-scale
+their experiments making it unclear whether these
+findings generalize at larger scales (Bowles et al.,
+2024; Mingard et al., 2024).
+Motivated by these limitations, we propose a
+scheme to efficiently encode and measure classi-
+cal data from quantum devices and demonstrate its
+effectiveness across different tasks. The method
+we propose is a specific instance of a flipped
+model (Jerbi et al., 2024), a type of circuit which
+encodes data as the observable of a quantum circuit
+rather than as a quantum state, effectively bypass-
+ing the need for input encoding (Figure 1). From
+a linear algebra perspective, this corresponds to
+learning a vector representation of the classifica-
+tion problem and using the input data to compute
+projections of this vector. The magnitude of these
+projected vectors is then used to make predictions.
+In quantum-mechanical terms, unstructured input
+data is mapped onto Pauli strings which are then
+combined to construct a Hamiltonian. The classi-
+fier prediction is obtained as the expectation value
+of this Hamiltonian. We improve over the standard
+flipped model by providing a mapping from inputs
+to observables that achieves a favourable logarith-
+mic qubit and gate complexity relative to the input
+dimensionality (Figure 1). We also introduce two
+variants that trade some classification performance
+in exchange for smaller model size and better sam-
+ple complexity, respectively. Crucially, the scaling
+exhibited by these models allows them to be exe-
+cuted on quantum devices and simulated on classi-
+cal hardware at scales already meaningful for NLP
+tasks. In brief, this paper provides the following
+contributions:
+C1 A novel encoding scheme achieving logarith-
+mic qubit and gate complexity;
+C2 Variants of this scheme with different
+performance-cost tradeoffs;
+C3 A thorough evaluation of our scheme on text
+and image classification tasks, against estab-
+lished quantum and classical baselines.
+2 Background
+Quantum computers differ fundamentally from
+classical computers, utilizing the principles of
+quantum physics rather than binary logic imple-
+mented by transistors. For readers unfamiliar with
+the topic, in Appendix A we offer a brief introduc-
+tion to the notation and formalize the concepts of
+qubit, gate, measurement, and Pauli decomposition.
+In this section, we instead discuss how these de-
+vices have been used to tackle machine learning
+problems, as well as their limitations.
+2.1 Data encoding
+The first step for quantum-based ML algorithms
+is state preparation, the process of representing
+input data as quantum states. Most algorithms
+share similarities in how they achieve this (Rath
+and Date, 2023). The choice of encoding severely
+impacts the runtime of the circuit as well as its
+expressivity (Sim et al., 2019). Basis encoding
+is the simplest representation analogous to classi-
+cal bits. An n-element bit string
+
+x1 x2 . . . xn
+
+is represented in the basis states of n qubits asNn
+i=1 |xi⟩ = |x1 . . . xn⟩ (e.g. 011 is represented
+as |011⟩). This representation requires O(n) qubits.
+Angle encoding represents continuous data as the
+phase of qubits. A set of n continuous variables
+x1 x2 . . . xn
+
+can be represented over n qubits
+as Nn
+j=1 Rˆσ(xj) |0⟩ with Rˆσ(x) = e−ixˆσ a so-
+called rotation gate, and ˆσ a Pauli matrix X, Y
+2
+or Z that specifies the rotation axis. Amplitude
+encoding represents a vector of N = 2n values
+x1 x2 . . . xN
+
+over n qubits as PN−1
+i=0 xi |i⟩,
+where {|i⟩}N
+i=1 corresponds to the canonical or-
+thonormal basis written in a binary representation.
+There is a trade-off between ease of encoding
+and qubit count: basis and angle encoding useO(n)
+gates for O(n) values over O(n) qubits, while am-
+plitude encoding handles N-dimensional inputs
+but needs O(N) gates over O(n) qubits, an expo-
+nential increase in input size but also gates. An-
+gle encoding strategies often embed multiple fea-
+tures onto the same qubit to reduce qubit usage,
+effectively a form of pooling (Pérez-Salinas et al.,
+2020; Du et al., 2020). Amplitude encoding, on
+the other hand, is often performed using easy-to-
+prepare quantum states to mitigate its gate complex-
+ity (Ashhab, 2022; Du et al., 2020). In text-related
+tasks, encoding schemes typically encode words
+over a set number of qubits (Wu et al., 2021; Lorenz
+et al., 2021), while in image tasks, pixel values are
+directly encoded as angles or amplitudes (Cong
+et al., 2019; Wei et al., 2022).
+2.2 Variational quantum circuits
+Once data has been encoded in a quantum com-
+puter, it is processed by a quantum circuit to obtain
+a prediction. One of the leading paradigms for
+QML revolves around VQCs (also called quantum
+ansätze, or parametrized quantum circuits), a type
+of circuit where the action of gates is controlled
+by classical parameters. The training loop of a
+VQC closely resembles that of classical neural net-
+works (Cerezo et al., 2021): input data is encoded
+in the quantum device as a quantum state, several
+layers of parametrized gates transform this state, a
+prediction is obtained via quantum measurement,
+and finally, a specialized but classical optimizer
+(Wierichs et al., 2022) computes a loss and updates
+the parameters. VQCs have shown better conver-
+gence during training (Abbas et al., 2021) as well as
+better expressive power (Du et al., 2020) compared
+to neural networks of similar size.
+Several VQC-based equivalents of classical ar-
+chitectures have been proposed such as auto-
+encoders (Romero et al., 2017), GNNs (Dallaire-
+Demers and Killoran, 2018), and CNNs (Cong
+et al., 2019; Henderson et al., 2020). Quantum NLP
+works have focused on implementing VQCs with
+favourable inductive biases for text, such as quan-
+tum RNNs (Bausch, 2020; Li et al., 2023), quantum
+LSTMs (Chen et al., 2022), and quantum attention
+layers (Cherrat et al., 2022; Shi et al., 2023; Zhao
+et al., 2024), with recent works showcasing appli-
+cability of these methods at scales meaningful for
+NLP applications (Xu et al., 2024)
+2.3 Quantum Machine Learning limitations
+Despite these achievements, QML applications
+have yet to demonstrate a practical quantum ad-
+vantage. Firstly, NISQ devices are limited in terms
+of the number of qubits in a single device, con-
+nectivity between the qubits, noise in the compu-
+tation, and coherence time (Zaman et al., 2023;
+Anschuetz and Kiani, 2022). Secondly, quantum
+devices have fundamental difficulties in dealing
+with the dense and unstructured vector represen-
+tations around which ML revolves: loading (or
+encoding) data into a quantum state either requires
+a large number of qubits (for angle and basis encod-
+ing) or a prohibitive amount of gates (for amplitude
+encoding). Efficient methods for amplitude encod-
+ing (Ashhab, 2022; Wang et al., 2009) incur trade-
+offs in the expressivity of vectors that have not
+been explored sufficiently in the context of QML.
+Moreover, measurement is an expensive process
+extracting only one bit of information per qubit
+measured. Extracting a real-valued vector from
+a quantum computer generally requires exponen-
+tially many measurements (Schuld and Petruccione,
+2021). As a result, many current QML experiments
+are limited in both scale and scope in order to fit
+within the constraints of NISQ devices and simula-
+tors. Small datasets, typically consisting of only a
+few hundred samples, are often used (Senokosov
+et al., 2024; Li et al., 2023; Liu et al., 2021; Chen,
+2022). Additionally, aggressive dimensionality re-
+duction is commonly performed to reduce data to
+just a few dozen features (Bausch, 2020; Zhao et al.,
+2024). In contrast, even "small" classical neural
+networks by modern standards are several orders
+of magnitude larger in terms of parameters, dataset
+size, and representation dimensionality (Mingard
+et al., 2024). These limitations have raised con-
+cerns about the applicability of QML results to
+larger, more complex tasks. Some question whether
+the observed performance is due to the quantum
+model itself or the upstream pre-processing (Chen
+et al., 2021), while others highlight the difficulty
+of generalizing these results to larger datasets and
+the challenges of fair benchmarking (Bowles et al.,
+2024; Mingard et al., 2024). Several other chal-
+lenges remain, including barren plateaus (Larocca
+et al., 2024), development of efficient optimization
+3
+algorithms for VQCs (Wiedmann et al., 2023), and
+error correction (Chatterjee et al., 2023).
+To mitigate the data loading and read-out chal-
+lenges, the flipped model has been recently intro-
+duced (Jerbi et al., 2024), where quantum resources
+are only required during training, while inference
+can happen classically. Although flipped models on
+NISQ devices are classically simulatable and thus
+cannot yet achieve quantum advantage, they hold
+significant promise when combined with shadow
+techniques (Huang et al., 2020; Song et al., 2023),
+which allow the prediction of many quantum sys-
+tem properties from a limited number of measure-
+ments. There are theoretically provable instances
+where shadow-flipped models outperform classi-
+cal methods under widely-believed cryptography
+assumptions (Gyurik and Dunjko, 2022). The guar-
+antees of flipped models, as well as their scalability,
+warrant their exploration in the context of NLP.
+3 Hamiltonian classifier
+In the following, we describe a flipped model that
+improves over previous works by sensibly lowering
+qubit requirements. To the best of our knowledge,
+we are the first to apply flipped models to text clas-
+sification and to provide a thorough evaluation of
+such methods across multiple datasets, compar-
+ing against classical and quantum baselines. We
+also propose two variants that further reduce model
+size and sample complexity with minimal impact
+on performance and extend flipped models to the
+multi-class scenario.
+3.1 Fully-parametrized Hamiltonian (HAM)
+Our Hamiltonian classifier takes as in-
+put a sequence of embeddings x =
+x1 x2 . . . xs
+
+, xi ∈ Rd and outputs a
+prediction probability fθ,ϕ, a real number repre-
+senting the estimated class the input belongs to.
+Similarly to VQCs, gradient descent is used to
+optimize the classifier parameters θ, ϕon a given
+training set X with binary labels y. The classifier
+can encode embeddings of size at most N = 2n
+with the remaining N − d dimensions padded to 0.
+The optimization problem can be summarized as:
+arg min
+θ,ϕ
+1
+|X|
+X
+x∈X,y∈y
+L(fθ,ϕ(x), y), (1)
+fθ,ϕ(x) := σ(ψ†
+θHϕ(x)ψθ) (2)
+Hϕ(x) := H0
+ϕ + 1
+s
+sX
+i=1
+xix⊤
+i (3)
+ψθ := Uθ |0⟩⊗n = Uθ
+
+1 0 ··· 0
+⊤ . (4)
+Hϕ ∈ RN×N is the Hamiltonian of our system,
+and is constructed from embeddings x and a bias
+term H0
+ϕ ∈ RN×N (Eq. 3). The bias term is a fully
+parametrized Hermitian matrix, giving more fine-
+grained control over the Hamiltonian. Uθ ∈ CN×N
+represents a VQC, and ψθ is the result of applying
+said VQC to the starting state (Eq. 4). The spe-
+cific choice of VQC is application-dependant and
+we experiment with three qubit-efficient circuits
+during hyperparameter tuning, which we discuss
+in Appendix B. The prediction probability fθ,ϕ is
+regularized using the sigmoid function σ (Eq. 2).
+Finally, parameters θ, ϕare optimized classically
+to minimize the loss function L, the cross entropy.
+When building Uθ and ψθ, they are not explicitly
+represented as dense matrices in classical form. In-
+stead, they are constructed directly on quantum
+hardware from a manageable set of parameters,
+avoiding the need for large-scale classical represen-
+tations. By encoding inputs of size d ≤ N over n
+qubits, we attain logarithmic scaling in the number
+of qubits and an overall sample complexity that
+scales quadratically in the embedding size. We
+expand on this in Section 3.4.
+3.2 Parameter-efficient Hamiltonian (PEFF)
+The bias term H0
+ϕ of HAM significantly contributes
+to its parameter count, resulting in a O(N2) scal-
+ing. To lower the model size, we experiment with
+applying a bias term bϕ ∈ Rd directly to the input
+embeddings as ˜xi := xi + bϕ. This term skews
+the distribution in the vector space while only re-
+quiring O(d) parameters. The Hamiltonian is then
+constructed as Hϕ(˜x) := 1
+s
+Ps
+i=1 ˜xi˜x.
+Physically implementing the Hamiltonians of
+HAM and PEFF requires first decomposing them
+into observables the quantum device can measure
+and then performing measurements for each ob-
+servable separately. As we detail in Appendix A,
+this process is potentially expensive, requiring an
+exponential number of operations. In the follow-
+4
+Adding bias term
+Mapping to 
+Pauli strings
+State preparation
+Expectation value 
+computation
+Figure 2: The SIM model at a glance. In green, parts
+that are stored classically, in blue, parts that can be
+represented on quantum computers.
+ing, we show how the model can be restructured to
+drastically reduce this cost.
+3.3 Simplified Hamiltonian (SIM) variant
+To address the computational challenges we de-
+scribe above, we propose an extension of PEFF
+that constructs the Hamiltonian from a small num-
+ber p of Pauli strings, circumventing the need for
+an expensive decomposition and reducing the num-
+ber of necessary measurements to O(p) (Figure
+2). More information about Pauli strings can be
+found in Appendix A. We define p Pauli strings
+P1, P2, . . . Pp ∈ Pn (in practice, they can be cho-
+sen at random) and use them to compute the corre-
+sponding coefficients α1, α2, . . . αp from H:
+˜x := 1
+s
+sX
+i=1
+xi + bϕ (5)
+Hϕ(˜x) := ˜x˜x⊤ (6)
+αi = 1
+2n Tr(PiHϕ) = 1
+2n ˜x⊤Pi˜x (7)
+˜Hϕ(˜x) :=
+pX
+j=1
+αjwjPj, (8)
+where wj ∈ R is a learned parameter that re-
+weights the effect of Pauli strings. Pj and Hϕ
+in Eq. 7 are generally large matrices, but several
+algorithms exist that side-step the costs of full mul-
+tiplication by exploiting the structure of the Pauli
+string (Koska et al., 2024; Hantzko et al., 2024).
+For this method, we choose to redefine Hϕ (Eq. 5
+and 6) in a way that allows replacing the expen-
+sive matrix-matrix product PiHϕ with two more
+efficient vector-matrix products ˜x⊤Pi˜x, thus im-
+proving scaling.
+To emphasize the underlying transformation, we
+recast the expectation value computation in SIM:
+fθ,ϕ(˜x) =σ
+ 1
+2n
+pX
+j=1
+˜x†Pj ˜xwjψ†
+θPjψθ
+
+. (9)
+Equation 9 shows that SIM computes a weighted
+sum of several feature maps ˜x†Pj ˜x, where the
+weights are determined by both the learned termwj
+and the factor ψ†
+θPjψθ. These two terms concur to
+select the feature maps most relevant for solving the
+problem. During our exploration, we observe that
+removing wj significantly degrades performance.
+We speculate this occurs because ψ†
+θPjψθ is con-
+strained to the range [−1, 1], whereas the presence
+of wj introduces a notion of magnitude that facil-
+itates training. A related approach is discussed
+in Huang and Rebentrost (2024), which focuses
+on improving variational strategies rather than di-
+rectly addressing the challenges of input encod-
+ing. We believe that these two methods could be
+synergistically combined to further reduce overall
+computational costs.
+All proposed methods output a prediction prob-
+ability fθ,ϕ to be interpreted as a binary label. We
+can extend this to a scenario with c distinct classes
+by using a one-vs-many approach: either Uθ, bϕ
+or w can be tied to a specific class to obtain a
+class-specific discriminator. We choose a setup that
+learns c distinct re-weightings w1, w2, . . . wc and
+build c separate Hamiltonians ˜H1
+ϕ, ˜H2
+ϕ, . . .˜Hc
+ϕ so
+that each one discriminates a single class. For class
+k, we have Hk
+ϕ(˜x) := Pp
+j=1 αjwk
+j Pj. Parameter
+count scales as O(c), although different choices
+of parameter sharing strongly affect the final num-
+ber. Since our setup learns different weights for
+the same Pauli strings across classes, expectation
+values on a real quantum device can be computed
+only once and then post-processed to obtain proba-
+bilities for all classes.
+3.4 Complexity analysis
+In this section, we compare the theoretical qubit
+count, gate complexity, and sample complexity of
+our classifier with other established models from
+the literature. We consider a subset of implementa-
+tions from the literature that we consider represen-
+tative of the current discourse. Our three variants
+all achieve a qubit count that scales as the logarithm
+of the input dimensionality. This is determined by
+5
+the number of qubits required to encode a large
+enough Hamiltonian. For our models, gate com-
+plexity depends entirely on the chosen circuit Uθ.
+The ansätze we consider throughout our experi-
+ments result in a linear or quadratic scaling. Sam-
+ple complexity, defined as the total number of Pauli
+strings to measure in order to obtain a prediction,
+both HAM and PEFF necessitate a full evaluation
+of the Hamiltonian, resulting in a complexity of
+O(4n). Since 4log2(d) = 2log2(d2), we conclude
+that the sample complexity isO(d2). Notably, SIM
+combines the logarithmic scaling in qubit and gate
+complexity of the other variants with a constant
+sample complexity made possible by simplifying
+the Hamiltonian, making it a strong candidate for
+practical implementation on NISQ devices. The
+full comparison is shown in Table 1. For readability,
+we omit the precision term arising when running
+these methods on quantum hardware. All models
+incur an additional 1/ϵ2 term in sample complexity,
+where ϵ is the desired precision.
+4 Experiments
+4.1 Datasets & Pre-processing
+To evaluate the capabilities of our models, we se-
+lect a diverse set of tasks encompassing both text
+and image data, covering binary and multi-class
+scenarios. To facilitate replicability, our scripts au-
+tomatically download all datasets on the first run.
+Text datasets We first consider the GLUE Stan-
+ford Sentiment Treebank (SST) dataset as obtained
+from HuggingFace2 (Socher et al., 2013; Wang
+et al., 2019). It consists of ∼ 70k single sen-
+tences extracted from movie reviews whose senti-
+ment (positive/negative) was annotated by 3 human
+judges. We then evaluate our method on the IMDb
+Large Movie Review Dataset (Maas et al., 2011)
+containing 50k highly polar movie reviews. We
+also consider the AG News (Zhang et al., 2015)
+classification task as a benchmark for our multi-
+class model. AG News consists of ∼ 128k news
+articles divided by topic (world, sports, business,
+sci/tech). These are commonplace datasets rea-
+sonably close to real-world applications. For text
+datasets, we remove all punctuation, lowercase all
+text, tokenize with a whitespace strategy, and fi-
+nally embed tokens with word2vec 3 to obtain a
+sequence x. The resulting embedding has size
+2https://huggingface.co/datasets/stanfordnlp/sst2
+3https://code.google.com/archive/p/word2vec/
+d = 300 and requires n = 9 qubits to be repre-
+sented in our methods.
+Image datasets As a sanity check, we con-
+sider a binary version of MNIST which only in-
+cludes digits 0 and 1. We then consider Fashion-
+MNIST (Xiao et al., 2017), a dataset of 60k
+grayscale images of clothes subdivided into 10
+classes. Feeding images directly to our models
+results in d = 784 and n = 10. We further ex-
+periment on a binarized version of the CIFAR-10
+dataset (Krizhevsky, 2012) we name CIFAR-2 ob-
+tained by grouping the original ten classes into two
+categories: vehicles and animals. The 32×32 RGB
+images result in d = 1024 features over n = 10
+qubits. We also note that no further pre-processing
+or dimensionality reduction is performed to pre-
+serve the original properties of the images. MNIST
+and Fashion-MNIST representations are not se-
+quential and therefore are considered by our model
+as a special case with s = 1, while in CIFAR-2
+each channel is considered as a different element
+of a sequence with s = 3.
+4.2 Baselines
+We compare our classifiers (HAM, PEFF, SIM)
+with three quantum baselines: a QLSTM (Chen
+et al., 2022), a QCNN (Cong et al., 2019), and a
+simple circuit ansatz (CIRC). QLSTM and QCNN
+have been adapted from implementations of the
+original papers. CIRC is our implementation and
+consists of an amplitude encoding for the input, the
+same hardware-efficient ansätze of HAM, and a
+linear regression on the circuit’s output state. Note
+that running CIRC in practice would require state
+tomography, this setup is therefore not meant to
+be efficient or scalable but rather to give a best-
+case scenario of a VQC of similar complexity to
+our classifier. We also compare with out-of-the-box
+classical baselines: a multi-layer perception (MLP),
+a logistic regression (LOG), an RNN, an LSTM,
+and a CNN. MLP and LOG act on the mean-pooled
+embedding of the sequence.
+4.3 Experimental setting
+We first perform a random search on hyperparam-
+eters such as learning rate, batch size, number of
+qubits, and number of layers to identify the best
+configuration of each architecture. For the sake
+of brevity, a more detailed discussion is moved to
+Appendix B. After identifying the best hyperparam-
+eters, we train 10 models for each architecture with
+randomized seeds on the original training split and
+6
+Model Reference Qubit count Gate complexity Sample complexity
+QCNN Henderson et al. (2020) O(d) O(d2) O(2d)
+Cong et al. (2019) O(log d) O(d + l log d) O(p)
+QLSTM Chen et al. (2022) O(d) O(ld) O(d)
+QNN Farhi and Neven (2018) O(d) O(l) O(1)
+Mitarai et al. (2018) O(d) O(ld) O(1)
+Schuld et al. (2020) O(log d) O(d + l log d) O(1)
+HAM Ours O(log d) O(l log d) or O(l log(d)2) O(d2)
+PEFF Ours O(log d) O(l log d) or O(l log(d)2) O(d2)
+SIM Ours O(log d) O(l log d) or O(l log(d)2) O(p)
+Table 1: Theoretical scaling comparison of various VQCs, with d input size, l number of layers, and p number of
+Pauli strings to measure (defined as a hyperparameter).
+SST2 IMDb AG News
+Model # Params Train Test* # Params Train Test # Params Train Test
+LOG 301 84.7 80.4 301 85.8 85.5 1204 90.1 89.2
+MLP 180901 97.5 80.2 180901 88.1 85.8 40604 90.2 89.1
+LSTM 241701 97.8 84.4 241600 99.3 88.4 242004 91.5 90.5
+RNN 40301 89.6 80.1 60501 79.7 78.1 40604 88.8 88.1
+CIRC 923 85.2 80.1 923 86.1 85.8 2387 89.7 89.2
+QLSTM 2766 89.9 84.4 4679 76.8 67.9 3582 87.2 86.7
+HAM 130854 91.2 82.3 130926 91.0 88.1 - - -
+PEFF 410 81.8 80.0 410 84.0 83.8 - - -
+SIM 1338 80.6 79.0 1410 86.0 85.3 4416 89.4 88.6
+Table 2: Accuracies across text datasets. Results are averaged over 10 runs or (*) run achieving lowest training loss.
+average their performance on the test split. The
+only exception is the SST2 dataset for which no
+test set is provided. In this case, we select the run
+achieving the lowest training loss and submit it to
+GLUE’s website to get a test score. Appendix C
+shows additional experiments in which we further
+investigate architectural choices such as bias, state
+preparation, and number of Pauli strings. With the
+exception of QCNN which is implemented in Pen-
+nyLane, all quantum operations are simulated in
+PyTorch as it allows batching several Hamiltonians
+thus enabling efficient training. We do not simu-
+late noise in order to assess the performance of our
+approach under an ideal scenario. For all tasks, we
+use a cross-entropy loss during training.
+4.4 Results
+In Tables 2 and 3, we report train and test accu-
+racy for the text and image datasets respectively.
+MNIST2 is omitted for brevity since all models
+successfully achieve perfect scores. This validates
+our setup and confirms that HAM, PEFF, and SIM
+learn correctly. In the SST2 task, HAM performs
+competitively with baseline methods using a simi-
+lar number of parameters, outperforming simpler
+models like LOG, MLP and RNN, and ranking
+just below the LSTM and QLSTM. AG News and
+IMDb turn out to be easier tasks, with SIM achiev-
+ing scores comparable to the baselines and accu-
+racy being high for all models. CIFAR2 proves
+to be a hard task, likely due to the images be-
+ing coloured rather than grayscale and having a
+higher resolution: while HAM and PEFF score
+relatively higher than the LOG baseline, SIM un-
+derperforms, possibly due to its relatively simple
+decision boundary. We speculate that a higher num-
+ber of Pauli strings would narrow this gap, as more
+complex transformations would increase the capac-
+ity of the model. On Fashion, SIM performs better
+than LOG but worse than other baselines. Notably,
+CIRC achieves relatively high performance. Across
+tasks, PEFF and SIM attain performance compa-
+rable with the baseline despite the low parameter
+count. PEFF confirms our intuition that simply
+7
+CIFAR2 Fashion
+Model Params Train Test Params Train Test
+LOG 1025 73.9 72.9 1025 85.5 83.5
+MLP 112701 89.0 83.4 89610 87.9 85.8
+CNN 75329 96.3 94.1 130250 95.4 90.7
+CIRC 2081 85.1 84.6 11094 89.2 86.5
+QCNN 169 84.9 84.7 558 76.7 76.3
+HAM 523818 89.6 81.0 - - -
+PEFF 1056 79.3 78.7 - - -
+SIM 2156 68.9 68.2 10934 87.6 84.4
+Table 3: Accuracies across image datasets. Results are
+averaged over 10 runs.
+# Params Train Test*
+HAM 130854 91.2 82.3
+PEFF 410 81.8 80.0
+SIM 9410 84.5 80.1
+STATEIN 130854 92.0 80.2
+NOBIAS 38 70.0 71.9
+Table 4: Accuracies of additional variants on SST2.
+Results are averaged over 10 runs or (*) run achieving
+best train accuracy.
+skewing points in the embedding space can substi-
+tute the bulky bias term over the whole Hamilto-
+nian, while SIM confirms that performance can be
+retained even with a Hamiltonian composed of few
+Pauli strings. The high parameter count of HAM
+in MNIST2 and CIFAR2 is necessary to encode
+full-size images, resulting in large Hamiltonians.
+Across quantum models, we find no clear link be-
+tween entangling circuits and performance; non-
+entangling baselines often perform best, aligning
+with prior findings (Bowles et al., 2024).
+We perform additional experiments in Appendix
+C and find evidence that the number of Pauli strings
+is strongly linked with better performance. Specifi-
+cally, larger models with more Pauli strings exhibit
+higher accuracy and more stable training dynamics
+(Figure 3). Notably, between 500 and 1000 Pauli
+strings are already sufficient to match the perfor-
+mance of classical baselines on most tasks. This
+result aligns with our expectations, as increasing
+the number of Pauli strings enables the model to
+capture more complex features, as demonstrated in
+Eq. 9. Furthermore, we find that removing the bias
+term significantly worsens performance, underlin-
+ing the importance of this component.
+2 4 6 8 10
+Epoch
+0.60
+0.65
+0.70
+0.75
+0.80
+0.85
+0.90T est accuracy
+AG News test accuracy
+# Pauli strings
+50
+100
+500
+1000
+2 4 6 8 10
+Epoch
+0.55
+0.60
+0.65
+0.70
+0.75
+0.80
+0.85T est accuracy
+Fashion test accuracy
+# Pauli strings
+50
+100
+500
+1000
+Figure 3: Performance on the test sets for different
+number of Pauli strings in the SIM model. First 10
+epochs out of 30 shown.
+5 Discussion and future work
+This work extends the scalability of flipped models
+and makes it possible to process significantly larger
+inputs. Moreover, it demonstrates their importance
+as a viable quantum method for NLP tasks. The
+proposed HAM design encodes input data directly
+as a measurement, obtaining performance compara-
+ble with other specialized models. The PEFF vari-
+ant reduces its parameter complexity, and the SIM
+variant additionally reduces its sample complex-
+ity, offering a scheme that may be more efficiently
+implemented on quantum hardware. Notably, our
+method already scales well enough to allow mean-
+ingful studies on large datasets using simulators.
+The Hamiltonian classifier is presently a proof of
+concept meant to illustrate a novel input scheme for
+quantum devices with the ultimate goal of expand-
+ing the tools available to QML researchers. Future
+works could characterize the effectiveness of our
+approach on even larger problems and its integra-
+tion with existing classical pipelines. Other studies
+could consider local strings in conjunction with
+8
+classical shadows techniques to lower sample com-
+plexity. A way of learning more complex functions
+could be to stack several layers of Hamiltonian
+encoding, possibly performing nonlinear transfor-
+mations. On the same thread, our Hamiltonian clas-
+sifier could be reformulated as a feature extractor,
+allowing in to be integrated into hybrid quantum-
+classical pipelines. Other directions deserving a
+paper of their own are noise simulation and physi-
+cal implementations on real quantum hardware.
+Limitations
+This work does not evaluate HAM and PEFF in
+multi-class scenarios. Although a one-vs-many
+approach similar to SIM could be applied, simu-
+lating a separate Hamiltonian for each class would
+demand substantial computational resources. In-
+stead, we prioritized comprehensive hyperparame-
+ter search and experimentation on a wider selection
+of datasets to provide a better assessment of these
+methods’ performance.
+We are limited to a small number of qubits and
+Pauli strings due to constraints in our implemen-
+tation of the Hamiltonians. While increasing the
+qubit count of our system could enhance perfor-
+mance, a key strength of our approach is that it
+does not require a large number of qubits to op-
+erate effectively at scales already meaningful for
+NLP tasks.
+Although our results do not yet match state-of-
+the-art NLP models, this work highlights the po-
+tential of large-scale quantum architectures, mark-
+ing an important step toward practical applications.
+Theoretical findings on flipped models suggest that
+realizing a definitive advantage will require more
+advanced quantum devices than those presently
+available (Jerbi et al., 2024), making it unrealistic
+to expect these models to surpass classical coun-
+terparts at this stage. Consistent with prior efforts
+such as Xu et al. (2024), our emphasis remains
+on scalability rather than immediate performance
+parity with classical methods.
+Noisy simulations and real hardware implemen-
+tation fall outside the scope of this work, as the cur-
+rent model was not designed with noise resilience
+in mind.
+References
+Amira Abbas, David Sutter, Christa Zoufal, Aurelien
+Lucchi, Alessio Figalli, and Stefan Woerner. 2021.
+The power of quantum neural networks. Nature Com-
+putational Science, 1(6).
+Eric R Anschuetz and Bobak T Kiani. 2022. Quan-
+tum variational algorithms are swamped with traps.
+Nature Communications, 13(1):7760.
+Sahel Ashhab. 2022. Quantum state preparation proto-
+col for encoding classical data into the amplitudes
+of a quantum information processing register’s wave
+function. Phys. Rev. Res., 4:013091.
+Johannes Bausch. 2020. Recurrent quantum neural net-
+works. In Advances in Neural Information Process-
+ing Systems 33: Annual Conference on Neural In-
+formation Processing Systems 2020, NeurIPS 2020,
+December 6-12, 2020, virtual.
+Yoshua Bengio, Réjean Ducharme, and Pascal Vincent.
+2000. A neural probabilistic language model. In Ad-
+vances in Neural Information Processing Systems 13,
+Papers from Neural Information Processing Systems
+(NIPS) 2000, Denver, CO, USA, pages 932–938. MIT
+Press.
+Jacob Biamonte, Peter Wittek, Nicola Pancotti,
+Patrick Rebentrost, Nathan Wiebe, and Seth Lloyd.
+2017. Quantum machine learning. Nature,
+549(7671):195–202.
+Joseph Bowles, Shahnawaz Ahmed, and Maria Schuld.
+2024. Better than classical? the subtle art of
+benchmarking quantum machine learning models.
+Preprint, arXiv:2403.07059.
+Daan Camps, Roel Van Beeumen, and Chao Yang. 2021.
+Quantum fourier transform revisited. Numerical Lin-
+ear Algebra with Applications, 28(1):e2331.
+Matthias C. Caro, Hsin-Yuan Huang, M. Cerezo, Kunal
+Sharma, Andrew Sornborger, Lukasz Cincio, and
+Patrick J. Coles. 2022. Generalization in quantum
+machine learning from few training data. Nature
+Communications, 13(1):4919.
+M. Cerezo, Andrew Arrasmith, Ryan Babbush, Simon C.
+Benjamin, Suguru Endo, Keisuke Fujii, Jarrod R. Mc-
+Clean, Kosuke Mitarai, Xiao Yuan, Lukasz Cincio,
+and Patrick J. Coles. 2021. Variational quantum al-
+gorithms. Nature Reviews Physics, 3(9).
+Avimita Chatterjee, Koustubh Phalak, and Swaroop
+Ghosh. 2023. Quantum error correction for dummies.
+In Proceedings - 2023 IEEE International Confer-
+ence on Quantum Computing and Engineering, QCE
+2023, Proceedings - 2023 IEEE International Confer-
+ence on Quantum Computing and Engineering, QCE
+2023, pages 70–81, United States. Institute of Elec-
+trical and Electronics Engineers Inc. Publisher Copy-
+right: © 2023 IEEE.; 4th IEEE International Con-
+ference on Quantum Computing and Engineering,
+QCE 2023 ; Conference date: 17-09-2023 Through
+22-09-2023.
+9
+Samuel Yen-Chi Chen, Chih-Min Huang, Chia-Wei Hs-
+ing, and Ying-Jer Kao. 2021. An end-to-end trainable
+hybrid classical-quantum classifier. Machine Learn-
+ing: Science and Technology, 2(4):045021.
+Samuel Yen-Chi Chen, Shinjae Yoo, and Yao-Lung L.
+Fang. 2022. Quantum long short-term memory. In
+ICASSP 2022 - 2022 IEEE International Confer-
+ence on Acoustics, Speech and Signal Processing
+(ICASSP), pages 8622–8626.
+Yixiong Chen. 2022. Quantum dilated convolutional
+neural networks. IEEE Access, 10:20240–20246.
+El Amine Cherrat, Iordanis Kerenidis, Natansh Mathur,
+Jonas Landman, Martin Strahm, and Yun Yvonna
+Li. 2022. Quantum vision transformers. Preprint,
+arXiv:2209.08167.
+Iris Cong, Soonwon Choi, and Mikhail D. Lukin. 2019.
+Quantum convolutional neural networks. Nature
+Physics, 15(12).
+Pierre-Luc Dallaire-Demers and Nathan Killoran. 2018.
+Quantum generative adversarial networks. Phys. Rev.
+A, 98:012324.
+Yuxuan Du, Min-Hsiu Hsieh, Tongliang Liu, and
+Dacheng Tao. 2020. Expressive power of
+parametrized quantum circuits. Phys. Rev. Res. ,
+2:033125.
+Edward Farhi and Hartmut Neven. 2018. Classification
+with quantum neural networks on near term proces-
+sors. arXiv: Quantum Physics.
+Lov K. Grover. 1996. A fast quantum mechanical al-
+gorithm for database search. In Proceedings of the
+Twenty-Eighth Annual ACM Symposium on Theory
+of Computing, STOC ’96, page 212–219, New York,
+NY , USA. Association for Computing Machinery.
+Casper Gyurik and Vedran Dunjko. 2022. On estab-
+lishing learning separations between classical and
+quantum machine learning with classical data. arXiv
+preprint arXiv:2208.06339.
+Lukas Hantzko, Lennart Binkowski, and Sabhyata
+Gupta. 2024. Tensorized pauli decomposition al-
+gorithm. Physica Scripta, 99(8):085128.
+Aram W. Harrow, Avinatan Hassidim, and Seth Lloyd.
+2009. Quantum algorithm for linear systems of equa-
+tions. Phys. Rev. Lett., 103:150502.
+Maxwell Henderson, Samriddhi Shakya, Shashindra
+Pradhan, and Tristan Cook. 2020. Quanvolutional
+neural networks: powering image recognition with
+quantum circuits. Quantum Machine Intelligence ,
+2(1):2.
+Hsin-Yuan Huang, Richard Kueng, and John Preskill.
+2020. Predicting many properties of a quantum sys-
+tem from very few measurements. Nature Physics,
+16(10):1050–1057.
+Po-Wei Huang and Patrick Rebentrost. 2024. Post-
+variational quantum neural networks. Preprint,
+arXiv:2307.10560.
+Sofiene Jerbi, Casper Gyurik, Simon C. Marshall, Ric-
+cardo Molteni, and Vedran Dunjko. 2024. Shadows
+of quantum machine learning. Nature Communica-
+tions, 15(1):5676.
+Nathan Killoran, Thomas R. Bromley, Juan Miguel Ar-
+razola, Maria Schuld, Nicolás Quesada, and Seth
+Lloyd. 2019. Continuous-variable quantum neural
+networks. Physical Review Research, 1(3).
+Océane Koska, Marc Baboulin, and Arnaud Gazda.
+2024. A tree-approach pauli decomposition algo-
+rithm with application to quantum computing. In ISC
+High Performance 2024 Research Paper Proceedings
+(39th International Conference), pages 1–11.
+Alex Krizhevsky. 2012. Learning multiple layers of
+features from tiny images. University of Toronto.
+Martin Larocca, Supanut Thanasilp, Samson Wang,
+Kunal Sharma, Jacob Biamonte, Patrick J Coles,
+Lukasz Cincio, Jarrod R McClean, Zoë Holmes,
+and M Cerezo. 2024. A review of barren plateaus
+in variational quantum computing. arXiv preprint
+arXiv:2405.00781.
+Yanan Li, Zhimin Wang, Rongbing Han, Shangshang
+Shi, Jiaxin Li, Ruimin Shang, Haiyong Zheng, Guo-
+qiang Zhong, and Yongjian Gu. 2023. Quantum re-
+current neural networks for sequential learning. Neu-
+ral Networks, 166:148–161.
+Junhua Liu, Kwan Hui Lim, Kristin L Wood, Wei
+Huang, Chu Guo, and He-Liang Huang. 2021. Hy-
+brid quantum-classical convolutional neural net-
+works. Science China Physics, Mechanics & As-
+tronomy, 64(9):290311.
+Robin Lorenz, Anna Pearson, Konstantinos Meichanet-
+zidis, Dimitri Kartsaklis, and Bob Coecke. 2021.
+Qnlp in practice: Running compositional models
+of meaning on a quantum computer, doi: 10.48550.
+arXiv preprint arXiv.2102.12846.
+Andrew L. Maas, Raymond E. Daly, Peter T. Pham,
+Dan Huang, Andrew Y . Ng, and Christopher Potts.
+2011. Learning word vectors for sentiment analysis.
+In Proceedings of the 49th Annual Meeting of the
+Association for Computational Linguistics: Human
+Language Technologies, pages 142–150, Portland,
+Oregon, USA. Association for Computational Lin-
+guistics.
+Chris Mingard, Jessica Pointing, Charles London, Yoon-
+soo Nam, and Ard A. Louis. 2024. Exploiting the
+equivalence between quantum neural networks and
+perceptrons. Preprint, arXiv:2407.04371.
+K. Mitarai, M. Negoro, M. Kitagawa, and K. Fujii. 2018.
+Quantum circuit learning. Phys. Rev. A, 98:032309.
+10
+Michael A. Nielsen and Isaac L. Chuang. 2000. Quan-
+tum Computation and Quantum Information. Cam-
+bridge University Press.
+John Preskill. 2018. Quantum Computing in the NISQ
+era and beyond. Quantum, 2:79.
+Adrián Pérez-Salinas, Alba Cervera-Lierta, Elies Gil-
+Fuster, and José I. Latorre. 2020. Data re-uploading
+for a universal quantum classifier. Quantum, 4:226.
+Nils Quetschlich, Mathias Soeken, Prakash Murali, and
+Robert Wille. 2024. Utilizing resource estimation for
+the development of quantum computing applications.
+Preprint, arXiv:2402.12434.
+Minati Rath and Hema Date. 2023. Quantum data
+encoding: A comparative analysis of classical-
+to-quantum mapping techniques and their im-
+pact on machine learning accuracy. Preprint,
+arXiv:2311.10375.
+Jonathan Romero, Jonathan P Olson, and Alan Aspuru-
+Guzik. 2017. Quantum autoencoders for efficient
+compression of quantum data. Quantum Science and
+Technology, 2(4).
+M. Schuld and F. Petruccione. 2021. Machine Learning
+with Quantum Computers . Quantum Science and
+Technology. Springer International Publishing.
+Maria Schuld, Alex Bocharov, Krysta M. Svore, and
+Nathan Wiebe. 2020. Circuit-centric quantum classi-
+fiers. Phys. Rev. A, 101:032308.
+Maria Schuld and Nathan Killoran. 2022. Is quantum
+advantage the right goal for quantum machine learn-
+ing? PRX Quantum, 3:030101.
+Arsenii Senokosov, Alexandr Sedykh, Asel Sagin-
+galieva, Basil Kyriacou, and Alexey Melnikov. 2024.
+Quantum machine learning for image classifica-
+tion. Machine Learning: Science and Technology ,
+5(1):015040.
+Jinjing Shi, Ren-Xin Zhao, Wenxuan Wang, Shichao
+Zhang, and Xuelong Li. 2023. Qsan: A near-term
+achievable quantum self-attention network. Preprint,
+arXiv:2207.07563.
+Peter W. Shor. 1997. Polynomial-time algorithms for
+prime factorization and discrete logarithms on a quan-
+tum computer. SIAM Journal on Computing, 26(5).
+Sukin Sim, Peter D. Johnson, and Alán Aspuru-Guzik.
+2019. Expressibility and entangling capability of
+parameterized quantum circuits for hybrid quantum-
+classical algorithms. Advanced Quantum Technolo-
+gies, 2(12).
+Richard Socher, Alex Perelygin, Jean Wu, Jason
+Chuang, Christopher D. Manning, Andrew Ng, and
+Christopher Potts. 2013. Recursive deep models for
+semantic compositionality over a sentiment treebank.
+In Proc. of EMNLP, pages 1631–1642, Seattle, Wash-
+ington, USA. Association for Computational Linguis-
+tics.
+Yanqi Song, Yusen Wu, Shengyao Wu, Dandan Li,
+Qiaoyan Wen, Sujuan Qin, and Fei Gao. 2023. A
+quantum federated learning framework for classical
+clients. Preprint, arXiv:2312.11672.
+Yigit Subasi, Zoe Holmes, Nolan Coble, and Andrew
+Sornborger. 2023. On nonlinear transformations in
+quantum computation. In APS March Meeting Ab-
+stracts, volume 2023 of APS Meeting Abstracts, page
+M64.009.
+Alex Wang, Amanpreet Singh, Julian Michael, Felix
+Hill, Omer Levy, and Samuel R. Bowman. 2019.
+GLUE: A multi-task benchmark and analysis plat-
+form for natural language understanding. In Proc. of
+ICLR. OpenReview.net.
+Hefeng Wang, S. Ashhab, and Franco Nori. 2009. Ef-
+ficient quantum algorithm for preparing molecular-
+system-like states on a quantum computer. Physical
+Review A, 79(4).
+ShiJie Wei, YanHu Chen, ZengRong Zhou, and GuiLu
+Long. 2022. A quantum convolutional neural net-
+work on nisq devices. AAPPS Bulletin, 32(1):2.
+Marco Wiedmann, Marc Hölle, Maniraman Periyasamy,
+Nico Meyer, Christian Ufrecht, Daniel D Scherer,
+Axel Plinge, and Christopher Mutschler. 2023. An
+empirical comparison of optimizers for quantum ma-
+chine learning with spsa-based gradients. In 2023
+IEEE International Conference on Quantum Comput-
+ing and Engineering (QCE), volume 1, pages 450–
+456. IEEE.
+David Wierichs, Josh Izaac, Cody Wang, and Cedric
+Yen-Yu Lin. 2022. General parameter-shift rules for
+quantum gradients. Quantum, 6:677.
+Sixuan Wu, Jian Li, Peng Zhang, and Yue Zhang. 2021.
+Natural language processing meets quantum physics:
+A survey and categorization. In Proceedings of the
+2021 Conference on Empirical Methods in Natural
+Language Processing, pages 3172–3182, Online and
+Punta Cana, Dominican Republic. Association for
+Computational Linguistics.
+Han Xiao, Kashif Rasul, and Roland V ollgraf. 2017.
+Fashion-mnist: a novel image dataset for bench-
+marking machine learning algorithms. Preprint,
+arXiv:1708.07747.
+Wenduan Xu, Stephen Clark, Douglas Brown, Gabriel
+Matos, and Konstantinos Meichanetzidis. 2024.
+Quantum recurrent architectures for text classifica-
+tion. In Proceedings of the 2024 Conference on Em-
+pirical Methods in Natural Language Processing ,
+pages 18020–18027, Miami, Florida, USA. Associa-
+tion for Computational Linguistics.
+Zebo Yang, Maede Zolanvari, and Raj Jain. 2023. A
+survey of important issues in quantum computing and
+communications. IEEE Communications Surveys &
+Tutorials, 25(2):1059–1094.
+11
+Kamila Zaman, Alberto Marchisio, Muhammad Abdul-
+lah Hanif, and Muhammad Shafique. 2023. A survey
+on quantum machine learning: Current trends, chal-
+lenges, opportunities, and the road ahead. Preprint,
+arXiv:2310.10315.
+Xiang Zhang, Junbo Zhao, and Yann LeCun. 2015.
+Character-level convolutional networks for text clas-
+sification. In Advances in Neural Information Pro-
+cessing Systems, volume 28. Curran Associates, Inc.
+Ren-Xin Zhao, Jinjing Shi, and Xuelong Li. 2024. Qk-
+san: A quantum kernel self-attention network. IEEE
+Transactions on Pattern Analysis and Machine Intel-
+ligence, pages 1–12.
+A Quantum computing fundamentals
+Quantum computers are conceptually and physi-
+cally different devices from classical computers.
+Instead of basing their logic on binary data repre-
+sentations implemented by transistors, they utilize
+the rules of quantum physics as a substrate for com-
+putation. For this reason, in what follows we de-
+scribe the building blocks of quantum computation.
+Dirac notation Quantum computing makes ex-
+tensive use of Dirac notation (also called bra-ket
+notation) to simplify the representation of linear
+transformations which are commonplace in the the-
+ory. The fundamental elements of this notation are
+bras and kets. A ket, denoted as |ψ⟩, represents a
+column vector ψ in a Hilbert space. A bra, denoted
+as ⟨ϕ|, represents instead a vector in the dual space
+(the complex conjugate transpose of a ket). The in-
+ner product of two vectorsϕ and ψ, which results in
+a scalar, is written as ⟨ϕ⟩ψ. Conversely, the outer
+product |ψ⟩⟨ϕ|, forms a matrix or an operator.
+Quantum systems The basic unit of informa-
+tion in a quantum computer is a two-dimensional
+quantum bit (qubit) which is mathematically mod-
+elled by a normalized column vector, the state vec-
+tor, in a two-dimensional vector space equipped
+with an inner-product, or Hilbert space. A state
+vector is usually expressed concisely in Dirac no-
+tation as |ψ⟩ =
+
+α β
+⊤ ∈ C2. We say that a
+qubit |ψ⟩ := α |0⟩ + β |1⟩ is in a coherent quan-
+tum superposition of two orthonormal basis states
+|0⟩ :=
+
+1 0
+⊤ and |1⟩ :=
+
+0 1
+⊤, such that the
+complex coefficients in the basis expansion satisfy
+normalization constraint |α|2 + |β|2 = 1. This
+constraint originates from physics: in order to ex-
+tract any information from a quantum state, we
+need to measure it in a chosen basis, which de-
+stroys the superposition in the measured basis by
+projecting the state |ψ⟩ on one of the basis ele-
+ments. If we measure state |ψ⟩ in the {|0⟩, |1⟩}
+basis, we get outcome " 0" with probability |α|2
+and the post-measurement state becomes |0⟩, and
+respectively, we get "1" with probability |β|2 and
+post-measurement state |1⟩.
+Multi-qubit systems In order to model a quan-
+tum system with multiple qubits, we use the so-
+called Kronecker product (⊗) to combine many
+individual state vectors into a single larger one. An
+n-qubit system can be represented by a vector of
+size N = 2n, |ψ1 . . . ψn⟩ := |ψ1⟩⊗···⊗| ψn⟩. In a
+chosen basis, the entries of this vector describe the
+probability of observing that outcome. Many QML
+approaches aim to gain a quantum advantage by
+manipulating only a few qubits to access an expo-
+nentially large Hilbert space. To give an example,
+if two qubits |ψ1⟩ and |ψ2⟩ are both initialized in
+(|0⟩ + |1⟩)/
+√
+2, the joint state is given by an equal
+superposition of all the possible n = 2bit string
+vectors
+|ψ1⟩ ⊗ |ψ2⟩ = |00⟩ + |01⟩ + |10⟩ + |11⟩
+2 .
+In this setup, measurement can performed sepa-
+rately on each qubit, resulting in a n-element bit-
+string.
+Quantum circuits Quantum computation is
+achieved by manipulating qubits. This is done
+using quantum gates. Any n-qubit gate can be
+represented as a unitary matrix U ∈ CN×N which
+acts on the n-qubit input state |ψ⟩ via the usual
+matrix-vector multiplication, giving output U |ψ⟩.
+Intuitively, quantum gates can be considered as ro-
+tations that conserve the length of a state vector. A
+sequence of gates applied on one or many qubits
+is called a quantum circuit. By construction, uni-
+tary circuits perform linear operations. Non-linear
+computation requires workarounds like running the
+computation on a larger Hilbert space and measur-
+ing output qubits in a subspace or re-uploading in-
+put data (Killoran et al., 2019; Pérez-Salinas et al.,
+2020; Subasi et al., 2023).
+Pauli decomposition A concise way of express-
+ing multiple measurements on multiple qubits over
+multiple bases is through a so-called Hamiltonian.
+A Hamiltonian H for an n-qubit system is a Her-
+mitian matrix of size 2n × 2n. The result of a
+measurement of a state ψ with a specific Hamil-
+tonian H can be expressed as ⟨ψ|H |ψ⟩, which is
+the expectation value of this measurement. The
+2 × 2 Pauli matrices, P = {X, Y, Z, I}, or more
+generally multi-body Pauli operators, also called
+Pauli strings, Pn = {Nn
+i=1 Oi|Oi ∈ P}form a
+12
+basis for Hermitian matrices of dimension 2n × 2n.
+Consequently, any Hamiltonian can be expressed
+as a linear combination of Pauli strings:
+H =
+X
+i
+αiPi where αi ∈ R and Pi ∈ Pn.
+This decomposition results in O(4n) unique Pauli
+strings, each representing a physical property that
+can be measured using quantum devices. Generic
+Hamiltonians are expensive to decompose and mea-
+sure due to the exponential number of Pauli strings.
+For this reason, in VQC settings, typical Hamilto-
+nians are constructed from a polynomial number
+of Pauli strings.
+B Hyperparameter tuning
+For each architecture and for each dataset in our
+evaluation, we perform a randomised search for the
+best parameters: we randomly select 50 configu-
+rations, train them on the task and evaluate their
+performance on the development set. To avoid over-
+fitting, we perform early stopping on the training if
+development loss does not decrease for five consec-
+utive epochs. Troughout all experiments, we utilize
+the Adam optimizer provided by PyTorch. Since
+our largest model HAM has at most∼ 500k param-
+eters (dictated by the embedding space), we limit
+the random search to configuration with less-than
+or equal number of parameters to ensure a fair com-
+parison. In practice, we find RNNs, LSTMs and
+CNNs perform very well with as low as40k param-
+eters. What follows is a list of all hyperparameters
+we evaluated:
+• Batch size: [64, 128, 256];
+• Learning rate: [10−2, 10−3, 10−4];
+• Hidden size: For RNNs and LSTMs, the size
+of the hidden representation [100, 300, 500];
+• Layers: For RNNs and LSTMs, the number
+of layers of the recurrent block [1, 4, 8]. For
+MLP, the total number of layers including in-
+put and output [3, 4, 5]. For CNNs, the total
+number of convolutional layers [3, 4, 5]. For
+HAM, PEFF, SIM and CIRC, the number of
+repeated applications of the ansatz, analogous
+to the number of layers [8, 16, 32];
+• Channels: For CNNs, the number of out-
+put channels of each convolutional layer
+[8, 16, 32, 64, 128];
+RX RY RZ
+RX RY RZ
+RX RY RZ
+(a)
+RY RX RY RX
+RY RX RY RX
+RY RX RY RX
+(b)
+RX RZ RX RX RX RZ
+RX RZ RX RX RX RZ
+RX RZ RX RX RX RZ
+(c)
+Figure 4: Circuit ansätze explored in the experiment.
+For the sake of visualization, the image shows ansätze
+for n = 3. Since the experiments use different values,
+we extend the patterns to act on more qubits. (a) Non-
+entangling ansatz (b) Ring ansatz (c) All-to-all ansatz.
+(b) and (c) are respectively circuit 14 and 6 from (Sim
+et al., 2019)
+• Kernel size: For CNNs, the kernel dimension
+of each convolutional layer [3, 5, 7];
+• Circuit: The ansatz Uθ used to prepare state
+ψ. We experiment with three hardware-
+efficient ansätze inspired by circuits from Sim
+et al. (2019) and illustrated in Figure 4. These
+ansätze are designed to explore different lev-
+els of entanglement (the quantum counter-
+part of correlation) and gate complexity. The
+first is a non-entangling circuit composed of
+single-qubit rotations, exhibiting linear com-
+plexity with respect to the number of qubits.
+The second is an entangling circuit arranged
+in a ring configuration, also scaling linearly
+in gate count. The third is an all-to-all en-
+tangling circuit, which scales quadratically.
+[Baseline, Ring, All-to-all].
+• # Pauli strings: For SIM, the number of
+Pauli strings composing the Hamiltonian
+[50, 100, 500, 1000].
+Tables 5 and 6 shows the final selection of best-
+performing hyperparameters used in the main ex-
+periment of Section 4.3.
+C Supplementary Experiments
+C.1 Removing bias hurts performance
+To further evaluate our models and assess the im-
+pact of key design choices, we conduct an ablation
+study using the SST2 dataset. As in the main ex-
+periment, we begin with the optimal set of hyperpa-
+13
+LOG
+Dataset Batch size Learning rate
+SST2 64 10−3
+IMDb 64 10−2
+AG News 64 10−2
+MNIST2 128 10−3
+CIFAR2 256 10−3
+Fashion 64 10−3
+MLP
+Dataset Batch size Learning rate Hidden size Layers
+SST2 64 10−4 300 3
+IMDb 64 10−3 300 3
+AG News 64 10−3 100 3
+MNIST2 256 10−4 100 3
+CIFAR2 128 10−4 100 3
+Fashion 256 10−3 100 3
+LSTM
+Dataset Batch size Learning rate Hidden size Layers
+SST2 64 10−2 100 2
+IMDb 128 10−2 100 2
+AG News 128 10−3 100 2
+RNN
+Dataset Batch size Learning rate Hidden size Layers
+SST2 64 10−4 100 1
+IMDb 256 10−4 100 2
+AG News 256 10−4 100 1
+CNN
+Dataset Batch size Learning rate Layers Channels Kernel Size
+MNIST2 64 10−3 5 16 5
+CIFAR2 64 10−4 4 32 5
+Fashion 64 10−3 4 16 3
+CIRC
+Dataset Batch size Learning rate Circuit Layers
+SST2 256 10−3 All-to-all 8
+AG News 128 10−3 Baseline 16
+IMDb 128 10−3 All-to-all 16
+MNIST2 128 10−3 Baseline 8
+CIFAR2 64 10−3 Baseline 8
+Fashion 256 10−3 Ring 32
+Table 5: Best hyperparameters across all baseline models and tasks
+14
+HAM
+Dataset Batch size Learning rate Circuit Layers
+SST2 128 10−3 Ring 8
+IMDb 256 10−3 All-to-all 32
+MNIST2 256 10−2 Baseline 32
+CIFAR2 64 10−3 Ring 8
+PEFF
+Dataset Batch size Learning rate Circuit Layers
+SST2 64 10−2 All-to-all 8
+IMDb 64 10−2 All-to-all 8
+MNIST2 64 10−3 All-to-all 8
+CIFAR2 256 10−2 Baseline 16
+SIM
+Dataset Batch size Learning rate Circuit Layers # Pauli strings
+SST2 256 10−3 Ring 32 1000
+IMDb 256 10−2 All-to-all 16 1000
+AG News 128 10−3 All-to-all 16 1000
+MNIST2 256 10−2 Ring 32 1000
+CIFAR2 64 10−3 All-to-all 32 1000
+Fashion 256 10−2 All-to-all 8 1000
+Table 6: Best hyperparameters across all Hamiltonian models and tasks
+rameters identified in Appendix B, apply changes
+to the architecture, and run 10 separate runs. Fi-
+nally, we report the test set performance of the run
+achieving the lowest loss as reported on the GLUE
+website.
+In this ablation study, we examine the role of
+the bias term in contributing to downstream perfor-
+mance. Our best-performing model, HAM, delivers
+strong results but does so with a large number of
+parameters. In contrast, PEFF offers slightly lower
+performance but significantly reduces the parame-
+ter count, as detailed in Section 4.4. To explore the
+impact of the bias term we completely remove it
+and assess the performance of the resulting model,
+referring to this variant as NOBIAS:
+Hϕ(x) := 1
+s
+sX
+i=1
+xix⊤
+i . (10)
+The results, summarized in Table 4, show a marked
+decrease in performance. The 71.9% accuracy
+achieved by NOBIAS is nonetheless surprising
+given the model is stripped of almost all param-
+eters. We hypothesize that, in HAM, the bias term
+influences the eigenvalues of the Hamiltonian, di-
+rectly affecting the final expectation value. For
+PEFF, the bias appears to shift the embeddings into
+a region more favourable for classification. We fur-
+ther speculate that NOBIAS could achieve results
+similar to PEFF by simply unfreezing the input em-
+beddings during training; this would allow them to
+shift as in the other variants.
+C.2 Additional state preparation leads to
+overfitting
+In this section we investigate whether combining
+our HAM architecture with a standard state prepa-
+ration routine improves model performance. Also,
+in this experiment, we consider SST2, with the
+configuration of the main text unchanged but for
+the additional state preparation. We call this setup
+STATEIN (short for STATE INput):
+˜x := 1
+s
+sX
+i=1
+˜xi (11)
+ψθ := Uθ |˜x⟩ (12)
+In this configuration, Uθ acts not on the zero-state,
+but on an initial state |˜x⟩ in which the input data
+has been amplitude-encoded. We hypothesize that
+applying Uθ directly to the encoded inputs might
+enable the model to better identify useful features
+15
+2 4 6 8 10
+Epoch
+0.5
+0.6
+0.7
+0.8
+0.9Train accuracy
+AG News train accuracy
+# Pauli strings
+50
+100
+500
+1000
+2 4 6 8 10
+Epoch
+0.5
+0.6
+0.7
+0.8Train accuracy
+Fashion train accuracy
+# Pauli strings
+50
+100
+500
+1000
+Figure 5: Performance on the train set for different
+number of Pauli strings in the SIM model. Error bars
+are shown for all choices but grow thin for the two
+largest models. First 10 epochs out of 30 shown.
+for classification. Results displayed in Table 4
+show a slight improvement in training accuracy,
+with STATEIN achieving an average of 92.0% over
+10 runs compared to 91.1% for HAM. However,
+the test accuracy only marginally exceeds that of
+PEFF and is noticeably lower than HAM, suggest-
+ing that the combination of Hamiltonian encoding
+and amplitude-encoded inputs may lead to overfit-
+ting. While these results provide some insights, a
+more thorough analysis of the interaction between
+state preparation and input-encoded measurement
+is needed, which we leave for future research.
+C.3 The number of Pauli strings correlates
+with performance
+Rewriting the SIM model leads to a bilinear form
+where each Pauli string acts as a transformation on
+the input (Eq. 9). During hyperparameter tuning,
+we consistently observe that the best-performing
+SIM models use 1000 Pauli strings across all ex-
+periments. We hypothesize that this is due to the
+distinct transformation each Pauli string introduces,
+which enriches the model’s feature set. This raises
+some questions: does increasing the number of
+Pauli strings, and thus the number of transforma-
+tions, lead to better performance? Moreover, how
+does the generalization capability scale with the
+number of Pauli strings?
+To explore this, we use the same configurations
+found for the AG News and Fashion datasets but
+vary the number of Pauli strings. Results are dis-
+played in Figures 3 and 5. Low string count do
+not perform much better than chance, but accu-
+racy steadily increases and eventually plateaus at
+1000 strings, reaching levels comparable to other
+models like MLP and CIRC. Increasing the num-
+ber of strings also leads to a more stable training
+process as highlighted by the error bars growing
+thin for p = 500and 1000. This suggests the loss
+landscape may become smoother as more transfor-
+mations are added, facilitating training. This is a
+promising outcome: it suggests that transforma-
+tions induced by Pauli strings actively contribute to
+learning by creating more complex features. It also
+indicates that a relatively small number of strings
+can effectively substitute for a full decomposition.
+We speculate that increasing the number of Pauli
+strings beyond 1000 could significantly improve
+results for more complex datasets like CIFAR2,
+where performance currently lags.
+16
+

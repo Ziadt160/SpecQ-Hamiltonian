@@ -1,0 +1,11 @@
+
+# Large datasets - keep out of git (GitHub rejects >100MB)
+data/creditcard_2023.csv
+*.egg-info/
+__pycache__/
+
+# Large datasets - GitHub rejects files over 100MB
+data/creditcard_2023.csv
+*.egg-info/
+__pycache__/
+*.py[cod]

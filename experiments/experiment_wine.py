@@ -2,6 +2,9 @@ from src.utils.data_loader import load_wine_normalized as load_and_preprocess_wi
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def load_and_preprocess_wine():
     """
     Loads Wine dataset and pads to 16 dimensions (4 qubits).

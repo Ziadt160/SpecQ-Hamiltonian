@@ -12,6 +12,9 @@ from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.utils.pauli_utils import generate_pauli_strings
 import os
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def load_ecoli_n6():
     """
     Loads EColi and selects top 64 genes (N=6).

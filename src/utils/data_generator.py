@@ -1,6 +1,9 @@
 import numpy as np
 from src.pauli_utils import get_pauli_tensor, generate_pauli_strings
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def generate_dataset(n_samples, n_qubits, regime, random_state=42, hamiltonian_seed=123):
     """
     Generates synthetic datasets for specific physical regimes.

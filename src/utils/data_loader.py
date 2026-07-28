@@ -8,6 +8,9 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import SelectKBest, chi2
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def download_20newsgroups_manual():
     """Manually downloads the 20 Newsgroups dataset."""
     data_home = os.environ.get('SCIKIT_LEARN_DATA', os.path.join('~', 'scikit_learn_data'))

@@ -18,6 +18,9 @@ from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.data_loader import load_ecoli_reduced as load_ecoli_n4
 import random
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def train_and_evaluate(model, X_train, y_train, X_test, y_test, epochs=150):
     opt = optim.Adam(model.parameters(), lr=0.01)
     crt = nn.BCELoss()

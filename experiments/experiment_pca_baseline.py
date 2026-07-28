@@ -4,6 +4,9 @@ from sklearn.metrics import accuracy_score
 from analysis_canonical_patterns import load_20newsgroups_projected
 from sklearn.model_selection import train_test_split
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def run_pca_baseline():
     print("Loading 20 Newsgroups (N=4)...")
     X, y = load_20newsgroups_projected(n_qubits=4)

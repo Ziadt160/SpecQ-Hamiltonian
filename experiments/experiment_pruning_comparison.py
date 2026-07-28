@@ -19,6 +19,9 @@ from src.generators.spectral_pauli_generator import generate_spectral_pauli_stri
 from src.generators.qmi_pauli_generator import generate_qmi_pauli_strings
 from src.utils.pauli_utils import generate_pauli_strings
 
+from src.utils.seeds import set_seed
+set_seed()
+
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

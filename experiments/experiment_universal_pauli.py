@@ -13,6 +13,9 @@ from sklearn.preprocessing import StandardScaler
 from src.exact_sim_classifier import ExactSIMClassifier
 from src.experiment_ecoli_exact_ablation import load_ecoli_n4
 
+from src.utils.seeds import set_seed
+set_seed()
+
 # --- Constants ---
 TOP_32_STRINGS = [
     "IXZZ", "IXXX", "XIZZ", "ZYYZ", "IIII", "YYXZ", "ZXIZ", "IZZX", 

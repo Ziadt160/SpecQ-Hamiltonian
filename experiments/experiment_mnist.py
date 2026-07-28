@@ -1,6 +1,17 @@
+import hydra
+from omegaconf import DictConfig, OmegaConf
 from src.utils.data_loader import load_digits_normalized as load_and_preprocess_digits
 from src.utils.pauli_utils import generate_pauli_strings
 from src.models.sim_classifier import SIMClassifier
+from src.utils.seeds import set_seed
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_digits
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+set_seed()
 
 def load_and_preprocess_digits():
     """
@@ -28,11 +39,12 @@ def load_and_preprocess_digits():
     
     return X_norm, y, n_qubits
 
-def run_mnist_experiment():
+@hydra.main(config_path="../configs", config_name="base", version_base=None)
+def run_mnist_experiment(cfg: DictConfig):
     print("Loading Digits dataset...")
     X, y, n_qubits = load_and_preprocess_digits()
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     
     print(f"Generating Pauli strings for N={n_qubits} (this may take a moment)...")
     all_strings = generate_pauli_strings(n_qubits)
@@ -42,7 +54,7 @@ def run_mnist_experiment():
     # 4096 features is manageable for LogisticRegression, but SGD might be faster if large N.
     # Let's stick to Liblinear for accuracy or switch to SGD.
     print("\n--- Training Full Model (Order 6) ---")
-    sim_full = SIMClassifier(pauli_strings=all_strings, C=10.0, random_state=42)
+    sim_full = SIMClassifier(pauli_strings=all_strings, C=10.0)
     sim_full.fit(X_train, y_train)
     full_acc = sim_full.score(X_test, y_test)
     print(f"Full Basis Test Accuracy: {full_acc:.4f}")
@@ -88,7 +100,7 @@ def run_mnist_experiment():
         print(f"Training Order <= {w} (Size {len(current_basis)})...")
         
         # Use SGD for faster feedback loop if needed, but here 4096 is fine.
-        sim = SIMClassifier(pauli_strings=current_basis, C=10.0, random_state=42)
+        sim = SIMClassifier(pauli_strings=current_basis, C=10.0)
         sim.fit(X_train, y_train)
         acc = sim.score(X_test, y_test)
         

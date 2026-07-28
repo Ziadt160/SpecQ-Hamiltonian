@@ -17,6 +17,9 @@ from spectral_pauli_generator import generate_spectral_pauli_strings
 from pauli_utils import generate_pauli_strings
 from experiment_ecoli_exact import load_ecoli_n4
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def add_feature_noise(X, noise_level=0.1):
     """
     Adds Gaussian noise to features.

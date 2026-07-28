@@ -9,6 +9,9 @@ from spectral_pauli_generator import generate_spectral_pauli_strings
 from analysis_canonical_patterns import load_20newsgroups_projected
 from exact_sim_classifier import ExactSIMClassifier
 
+from src.utils.seeds import set_seed
+set_seed()
+
 class NoisySIMClassifier(ExactSIMClassifier):
     def __init__(self, n_qubits, n_layers=2, pauli_strings=None, noise_prob=0.0):
         super().__init__(n_qubits, n_layers, pauli_strings=pauli_strings)

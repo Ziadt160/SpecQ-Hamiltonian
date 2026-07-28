@@ -1,0 +1,33 @@
+=== Spectral Analysis Deductions ===
+Top 20 Pauli Strings identified by Spectral Method:
+  YXYX: Coef = 0.000062+0.000000j
+  XYXY: Coef = 0.000055+0.000000j
+  YYXX: Coef = 0.000055+0.000000j
+  XXXX: Coef = -0.000052+0.000000j
+  IYXY: Coef = 0.000049+0.000000j
+  XXYY: Coef = 0.000046+0.000000j
+  XYYX: Coef = 0.000045+0.000000j
+  IXXZ: Coef = 0.000044+0.000000j
+  ZYXY: Coef = 0.000043+0.000000j
+  ZXYY: Coef = 0.000043+0.000000j
+  ZIYY: Coef = -0.000037+0.000000j
+  IXYY: Coef = 0.000036+0.000000j
+  XZIX: Coef = -0.000036+0.000000j
+  YYYY: Coef = -0.000035+0.000000j
+  YZIY: Coef = 0.000035+0.000000j
+  XIZX: Coef = -0.000034+0.000000j
+  YIZY: Coef = 0.000034+0.000000j
+  IZII: Coef = 0.000033+0.000000j
+  ZXXZ: Coef = 0.000032+0.000000j
+  XIIZ: Coef = 0.000032+0.000000j
+
+--- Statistical Deductions ---
+Average Interaction Order: 3.35
+Pauli Type Distribution: X=27, Y=28, Z=12
+
+--- Deductions regarding Feature Interactions ---
+1. High magnitude coefficients indicate specific feature tuples (represented by qubits) 
+   that exhibit maximum covariance shift between Fraud and Legit classes.
+2. If 'Z' dominates, the model relies on longitudinal correlations (scale/shift).
+3. If 'X' or 'Y' dominate, the model relies on transverse correlations (phase shifts/tilts in latent space).
+4. The interaction order (k-local Paulis) reveals the degree of non-linearity required to distinguish fraud.

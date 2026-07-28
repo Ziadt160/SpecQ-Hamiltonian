@@ -19,9 +19,11 @@ class ExactSIMClassifier(nn.Module):
         n_layers (int): Depth of the strongly entangling ansatz.
         pauli_strings (list of str): The interaction basis.
     """
-    def __init__(self, n_qubits, n_layers=3, device_name='default.qubit', pauli_strings=None):
+    def __init__(self, n_qubits, n_layers=3, device_name='default.qubit', pauli_strings=None, noise_model=None, shots=None, num_classes=1, **device_kwargs):
         super().__init__()
         self.n_qubits = n_qubits
+        self.num_classes = num_classes
+        self.noise_model = noise_model
         if pauli_strings is not None:
             self.pauli_strings = pauli_strings
         else:
@@ -29,7 +31,7 @@ class ExactSIMClassifier(nn.Module):
         self.n_paulis = len(self.pauli_strings)
         
         # 1. Quantum Device & Circuit
-        self.dev = qml.device(device_name, wires=n_qubits)
+        self.dev = qml.device(device_name, wires=n_qubits, shots=shots, **device_kwargs)
         
         # Define QNode
         @qml.qnode(self.dev, interface='torch')
@@ -65,13 +67,17 @@ class ExactSIMClassifier(nn.Module):
 
         self.qnode = circuit
         
+        # Professional NISQ Simulation: Apply noise transform if model provided
+        if self.noise_model is not None:
+            self.qnode = qml.add_noise(self.qnode, self.noise_model)
+        
         # 2. Parameters
         # Circuit weights: shape for StronglyEntangling is (n_layers, n_qubits, 3)
         weight_shapes = {"inputs": (n_layers, n_qubits, 3)}
         # We start with random weights
         self.circuit_weights = nn.Parameter(torch.rand(n_layers, n_qubits, 3, dtype=torch.float64))
         
-        self.w = nn.Parameter((torch.randn(self.n_paulis) * 0.01).double())
+        self.w = nn.Parameter((torch.randn(self.num_classes, self.n_paulis) * 0.01).double())
         
         # Input Bias b (added to embedding)
         self.dim = 2**n_qubits
@@ -88,54 +94,31 @@ class ExactSIMClassifier(nn.Module):
         
     def forward(self, x):
         """
-        x: (batch_size, dim)
+        x: (batch_size, dim) or (batch_size, seq_len, dim)
         """
+        # Eq 5: Sequence Mean-Pooling if input is 3D
+        if x.dim() == 3:
+            x = x.mean(dim=1)
+            
         # 1. Bias: x_tilde = x + b
-        # Paper says: x_tilde = x + b. Then re-normalize? 
-        # Paper Eq 5: x_tilde = 1/s sum x_i + b. For single sample: x + b.
-        # Usually quantum states need L2 norm=1. 
-        # But SIM formulation handles non-normalized inputs via the quadratic form.
-        # We'll stick to x + b.
         x_tilde = x + self.b
         
         # 2. Classical Feature Map: phi_j = x_tilde^T P_j x_tilde
-        # Efficient computation:
-        # P_tensor: (K, D, D)
-        # x_tilde: (B, D)
-        # We want Result: (B, K) where R_bj = x_b^T P_j x_b
-        
-        # Reshape for broadcast/einsum
-        # P x^T -> (K, D, D) @ (D, B)^T ?? No.
-        # x P x^T.
-        
-        # Option A: Loop (Bad)
-        # Option B: Einsum 'bik, kjl, bil -> bj' ? 
-        # Let's align dimensions:
-        # x_tilde: (B, D)
-        # P_tensor: (K, D, D)
-        # Term: sum_{m,n} x[b,m] * P[k,m,n] * x[b,n]
-        # Einsum: 'bm, kmn, bn -> bk'
-        
-        # Note: x_tilde might become huge if batch is large. 
-        # For N=4 (D=16), K=256, it's tiny. Safe.
-        
-        classical_features = torch.einsum('bm, kmn, bn -> bk', x_tilde, self.P_tensor, x_tilde)
+        # Including Eq 7 normalization scaling factor: 1 / 2^n
+        classical_features = torch.einsum('bm, kmn, bn -> bk', x_tilde, self.P_tensor, x_tilde) * (1.0 / (2**self.n_qubits))
         
         # 3. Quantum Expectations: E_j = <psi | P_j | psi>
-        # This depends only on circuit_weights, so it's constant for the batch!
-        # Returns list of Tensors or stacked Tensor
         quantum_expectations = self.qnode(self.circuit_weights)
-        # If qnode returns tuple/list, stack them
         if isinstance(quantum_expectations, (list, tuple)):
             quantum_expectations = torch.stack(quantum_expectations) # (K,)
         
         # 4. Combine (Eq 9)
         # f = sum_j ( Classical_j * w_j * Quantum_j )
-        # Dimensions: (B, K) * (K,) * (K,) -> Sum over K -> (B,)
+        # Dimensions: (B, K) * (C, K) * (K,) -> Sum over K -> (B, C)
+        logits = torch.einsum('bk,ck,k->bc', classical_features, self.w, quantum_expectations)
         
-        combined_weights = self.w * quantum_expectations # (K,)
-        logits = torch.sum(classical_features * combined_weights, dim=1) # (B,)
-        
-        # 5. Sigmoid (Output probability)
-        return torch.sigmoid(logits)
+        # 5. Output Normalization
+        if self.num_classes == 1:
+            return torch.sigmoid(logits.squeeze(1)) # Keep it binary (B,)
+        return logits # Multi-class raw logits (B, C)
 

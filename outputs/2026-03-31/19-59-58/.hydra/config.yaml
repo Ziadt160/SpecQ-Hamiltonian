@@ -1,0 +1,22 @@
+experiment:
+  mnist:
+    n_samples: 5000
+    n_qubits: 4
+    n_layers: 2
+    seed: 42
+    noise_prob: 0.0
+    data_path: data/mnist
+  creditcard:
+    n_samples: 5000
+    n_qubits: 4
+    n_layers: 2
+    seed: 42
+    noise_prob: 0.0
+    data_path: data/creditcard
+  ecoli:
+    n_samples: 5000
+    n_qubits: 4
+    n_layers: 2
+    noise_prob: 0.0
+    data_path: data/ecoli
+seed: 42

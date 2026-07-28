@@ -31,9 +31,9 @@ def generate_spectral_pauli_strings(X, y, n_qubits, top_k=None):
     
     # Check if empty (shouldn't happen in exp)
     if len(X0) < 2 or len(X1) < 2:
-        print("Warning: Not enough samples per class for covariance.")
-        cov0 = np.zeros((dim, dim))
-        cov1 = np.zeros((dim, dim))
+        print("Warning: Not enough samples per class for covariance. Result will be zero.")
+        R0 = np.zeros((dim, dim))
+        R1 = np.zeros((dim, dim))
     else:
         # Use simple matrix multiplication for R
         # X is (N, dim)
