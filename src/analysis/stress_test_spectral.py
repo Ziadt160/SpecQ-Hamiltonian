@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
 from ..utils.data_loader import load_20newsgroups_projected
 from ..models.exact_sim_classifier import ExactSIMClassifier
 from ..generators.spectral_pauli_generator import generate_spectral_pauli_strings

@@ -1,0 +1,17 @@
+Circuit Ablation: does the variational state add expressivity?
+==============================================================
+Dataset: E. Coli (CTZ), N=4, spectral top-32 basis
+Seeds: 5, epochs: 150
+Majority-class baseline (test): 0.8709
+
+arm                 accuracy     bal-acc        F1   train loss
+trained       0.9363 +-0.0030      0.8465    0.7461       0.2321
+frozen        0.9373 +-0.0020      0.8493    0.7507       0.2392
+none          0.9346 +-0.0040      0.8387    0.7363       0.2317
+
+trained = circuit optimized (shipped model)
+frozen  = circuit fixed at random init, only w optimized
+none    = circuit removed entirely (e_j = 1), only w optimized
+
+If the three arms agree, the quantum branch is a redundant
+reparametrization of a logistic regression on x^T P_j x.

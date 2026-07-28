@@ -105,7 +105,7 @@ def run_ecoli_spectral_experiment():
     acc_rand = train_model("Random Top-256", random_strings)
     
     # Save Results
-    with open('../results/ecoli_spectral_results.txt', 'w') as f:
+    with open('results/ecoli_spectral_results.txt', 'w') as f:
         f.write(f"E. Coli N=6 Experiment\n")
         f.write(f"Spectral Top-{k} Acc: {acc_spec:.4f}\n")
         f.write(f"Random Top-{k} Acc: {acc_rand:.4f}\n")

@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score
 from src.models.nisq_sim_classifier import NISQSIMClassifier
 from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
 from src.utils.pauli_utils import generate_pauli_strings
-from src.utils.data_loader import load_ecoli_reduced as load_ecoli_n4
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
 import random
 
 from src.utils.seeds import set_seed
@@ -42,7 +42,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test, epochs=150):
 
 def run_nisq_experiment(n_seeds=3):
     print("Loading E. Coli (N=4)...")
-    X, y = load_ecoli_n4()
+    X_genes, y = load_ecoli_raw()
     
     # We stop at 64 because NISQ simulation (density matrix) is slow
     k_values = [2, 4, 8, 16, 32, 64] 
@@ -54,9 +54,11 @@ def run_nisq_experiment(n_seeds=3):
     
     for seed in range(n_seeds):
         print(f"--- Seed {seed+1}/{n_seeds} ---")
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.3, random_state=42+seed
+        Xtr_raw, Xte_raw, y_train, y_test = train_test_split(
+            X_genes, y, test_size=0.3, random_state=42+seed
         )
+        # chi2 selection fit on the training split only (no test-label leakage)
+        X_train, X_test, _ = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=4)
         
         spectral_ranking, _, _ = generate_spectral_pauli_strings(X_train, y_train, 4)
         full_basis = generate_pauli_strings(4)
@@ -88,7 +90,7 @@ def run_nisq_experiment(n_seeds=3):
     plt.legend()
     plt.xscale('log', base=2)
     plt.grid(True, alpha=0.3)
-    plt.savefig('../results/nisq_robustness.png')
+    plt.savefig('results/nisq_robustness.png')
     print("Saved plot to results/nisq_robustness.png")
 
 if __name__ == "__main__":

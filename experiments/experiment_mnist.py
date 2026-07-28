@@ -1,5 +1,11 @@
 import hydra
 from omegaconf import DictConfig, OmegaConf
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+
 from src.utils.data_loader import load_digits_normalized as load_and_preprocess_digits
 from src.utils.pauli_utils import generate_pauli_strings
 from src.models.sim_classifier import SIMClassifier
@@ -13,34 +19,14 @@ from sklearn.model_selection import train_test_split
 
 set_seed()
 
-def load_and_preprocess_digits():
-    """
-    Loads 8x8 Digits dataset (1797 samples, 64 features).
-    Maps to N=6 qubits (2^6 = 64).
-    """
-    data = load_digits()
-    X = data.data
-    y = data.target
-    
-    n_samples, n_features = X.shape
-    n_qubits = 6
-    if n_features != 2**n_qubits:
-        raise ValueError(f"Feature dim {n_features} != 2^{n_qubits}")
-        
-    # Scale
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # Check for zero norms to avoid division by zero
-    norms = np.linalg.norm(X_scaled, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0 # Handle zero vectors if any
-    
-    X_norm = X_scaled / norms
-    
-    return X_norm, y, n_qubits
+# Note: this module previously redefined load_and_preprocess_digits here, which
+# shadowed the import above and referenced several names the file never imported.
+# The loader in src/utils/data_loader.py is equivalent (8x8 digits -> N=6,
+# standardized then row-normalized), so the duplicate has been removed.
 
 @hydra.main(config_path="../configs", config_name="base", version_base=None)
-def run_mnist_experiment(cfg: DictConfig):
+def run_mnist_experiment():
+    os.makedirs('results', exist_ok=True)
     print("Loading Digits dataset...")
     X, y, n_qubits = load_and_preprocess_digits()
     

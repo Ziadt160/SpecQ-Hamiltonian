@@ -1,5 +1,5 @@
 import numpy as np
-from src.pauli_utils import get_pauli_tensor, generate_pauli_strings
+from .pauli_utils import get_pauli_tensor, generate_pauli_strings
 
 from src.utils.seeds import set_seed
 set_seed()
@@ -65,8 +65,13 @@ def generate_dataset(n_samples, n_qubits, regime, random_state=42, hamiltonian_s
         # Represents interaction between contrast (Z) and flip (X)
         
         all_strs = generate_pauli_strings(n_qubits)
-        zx_strs = [s for s in all_strs if s.count('X') == 1 and s.count('Z') == 1]
-         
+        # Exactly one X and one Z, and no Y: the filter previously omitted the Y
+        # condition, so strings such as 'XZYY' (one X, one Z, two Ys -> a real
+        # matrix that survives .real) were mixed into what is documented as a
+        # pure Z_i X_j regime.
+        zx_strs = [s for s in all_strs
+                   if s.count('X') == 1 and s.count('Z') == 1 and s.count('Y') == 0]
+
         H_mat = np.zeros((dim, dim))
         for s in zx_strs:
             w = rng_h.randn()

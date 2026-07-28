@@ -9,16 +9,19 @@ from sklearn.model_selection import train_test_split
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string, get_pauli_tensor
 from src.models.sim_classifier import SIMClassifier
 from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.experiment_ecoli_exact_ablation import load_ecoli_n4, calculate_pauli_importance
-from src.analyze_pauli_geometry import get_selected_genes
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from src.analysis.analyze_pauli_geometry import get_selected_genes
+from experiments.experiment_ecoli_exact_ablation import calculate_pauli_importance
 
 from src.utils.seeds import set_seed
 set_seed()
-
-def train_and_rank(seed, X, y):
+def train_and_rank(seed, X_genes, y):
     print(f"\n--- Run Seed {seed} ---")
-    # Split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=seed)
+    # Split, then fit chi2 selection on the training split only (no test-label leakage)
+    Xtr_raw, Xte_raw, y_train, y_test = train_test_split(
+        X_genes, y, test_size=0.3, random_state=seed
+    )
+    X_train, X_test, _ = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=4)
     
     # Train
     # Using slightly fewer epochs (150) for speed in validation loop, 
@@ -54,7 +57,7 @@ def train_and_rank(seed, X, y):
 
 def run_stability_check():
     # 0. Load Data & Genes
-    X, y = load_ecoli_n4()
+    X_genes, y = load_ecoli_raw()
     gene_names = get_selected_genes()
     dim = 16
     
@@ -66,7 +69,7 @@ def run_stability_check():
     
     for seed in seeds:
         # 1. Train & Rank
-        p_strings, scores = train_and_rank(seed, X, y)
+        p_strings, scores = train_and_rank(seed, X_genes, y)
         
         # 2. Get Top 32
         sorted_indices = np.argsort(scores)[::-1].copy()

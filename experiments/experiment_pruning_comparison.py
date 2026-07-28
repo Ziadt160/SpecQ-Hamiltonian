@@ -13,7 +13,10 @@ from sklearn.feature_selection import SelectKBest, chi2
 
 from sklearn.feature_selection import SelectKBest, chi2
 
-from experiment_20newsgroups import load_and_preprocess_20newsgroups_n4
+from src.utils.data_loader import (
+    load_20newsgroups_n4 as load_and_preprocess_20newsgroups_n4,
+    load_ecoli_split,
+)
 from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
 from src.generators.qmi_pauli_generator import generate_qmi_pauli_strings
@@ -25,37 +28,12 @@ set_seed()
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def load_ecoli_data(n_qubits=4):
-    """
-    Loads E. Coli data and reduces to 2^n_qubits dimensions.
-    """
-    print(f"Loading E. Coli dataset (N={n_qubits})...")
-    # Path might vary, using the one seen in experiment_ecoli_exact.py
-    path = r'd:\Evoth Labs\SIM-Flipped Models\data\EColi_Merged_df.csv'
-    if not os.path.exists(path):
-        # Falback relative path
-        path = 'data/EColi_Merged_df.csv'
-        
-    df = pd.read_csv(path)
-    df = df.dropna(subset=['CTZ'])
-    y = df['CTZ'].apply(lambda x: 1 if x == 'R' else 0).values
-    
-    # Feature Selection
-    cols = list(df.columns)
-    try: start_idx = cols.index('CIP') + 1
-    except: start_idx = 15
-    X_genes = df.iloc[:, start_idx:].values
-    
-    target_dim = 2**n_qubits
-    selector = SelectKBest(chi2, k=target_dim)
-    X_reduced = selector.fit_transform(X_genes, y)
-    
-    # L2 Norm per sample
-    norms = np.linalg.norm(X_reduced, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    X_norm = X_reduced / norms
-    
-    return X_norm, y, n_qubits
+def split_projected(load_fn, test_size=0.3, random_state=42):
+    """Adapts an (X, y, n_qubits) loader into a () -> train/test split fn."""
+    def _split():
+        X, y, _ = load_fn()
+        return train_test_split(X, y, test_size=test_size, random_state=random_state)
+    return _split
 
 def train_and_eval(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, epochs=50):
     # Convert to Tensor (Double precision)
@@ -94,22 +72,20 @@ def run_ablation_study():
     results = []
     
     # Configuration
+    # Each entry yields an already-split dataset; for E. Coli the chi2 selection
+    # is fit on the training split only (no test-label leakage).
     datasets = [
-        ('20Newsgroups', 4, load_and_preprocess_20newsgroups_n4),
-        ('EColi', 4, lambda: load_ecoli_data(n_qubits=4)),
+        ('20Newsgroups', 4, split_projected(load_and_preprocess_20newsgroups_n4)),
+        ('EColi', 4, lambda: load_ecoli_split(n_qubits=4, test_size=0.3, random_state=42)),
         # Uncomment for N=6 if environment supports large matmuls (might be slow)
-        # ('EColi', 6, lambda: load_ecoli_data(n_qubits=6)) 
+        # ('EColi', 6, lambda: load_ecoli_split(n_qubits=6, test_size=0.3, random_state=42))
     ]
-    
+
     k_values = [32, 50, 128] # Pruning levels
-    
-    for ds_name, n_qubits, load_fn in datasets:
+
+    for ds_name, n_qubits, split_fn in datasets:
         print(f"\n=== Dataset: {ds_name} (N={n_qubits}) ===")
-        X, y, _ = load_fn() if ds_name == '20Newsgroups' else (*load_fn(),)
-        if len(y) != len(X): # Handle return differences
-             X, y = load_fn()
-            
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+        X_train, X_test, y_train, y_test = split_fn()
         
         # 1. Generate Rankings
         print("Generating Rankings...")

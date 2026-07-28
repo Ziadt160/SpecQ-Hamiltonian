@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from analysis_canonical_patterns import load_20newsgroups_projected
+from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
 from sklearn.model_selection import train_test_split
 
 from src.utils.seeds import set_seed
@@ -24,7 +24,7 @@ def run_pca_baseline():
     print(f"PCA-LR Train Acc: {train_acc:.4f}")
     print(f"PCA-LR Test Acc: {test_acc:.4f}")
     
-    with open('../results/pca_baseline.txt', 'w') as f:
+    with open('results/pca_baseline.txt', 'w') as f:
         f.write(f"Logistic Regression on PCA (16-dim):\n")
         f.write(f"Test Accuracy: {test_acc:.4f}\n")
 
