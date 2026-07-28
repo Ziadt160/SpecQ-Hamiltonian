@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from analysis_canonical_patterns import load_20newsgroups_projected
-from pauli_utils import get_pauli_tensor, generate_pauli_strings
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
+from src.utils.pauli_utils import get_pauli_tensor, generate_pauli_strings
 from sklearn.model_selection import train_test_split
 
 def compute_mc_estimate(X, y, pauli_string, n_samples=1000):
@@ -149,7 +149,7 @@ def run_mc_validation():
     plt.title('Error Distribution')
     
     plt.tight_layout()
-    plt.savefig('../results/mc_validation.png')
+    plt.savefig('results/mc_validation.png')
     print("Validation plot saved to results/mc_validation.png")
 
 if __name__ == "__main__":

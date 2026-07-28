@@ -5,9 +5,9 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from analysis_canonical_patterns import load_20newsgroups_projected
-from exact_sim_classifier import ExactSIMClassifier
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
+from src.models.exact_sim_classifier import ExactSIMClassifier
 
 class NoisySIMClassifier(ExactSIMClassifier):
     def __init__(self, n_qubits, n_layers=2, pauli_strings=None, noise_prob=0.0):
@@ -147,7 +147,7 @@ def run_noise_experiment(n_seeds=5):
     plt.title(f'Noise Robustness (Mean of {n_seeds} runs)\nSpectral Selection Favors Lower Weight Terms')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('../results/noise_robustness.png', dpi=300)
+    plt.savefig('results/noise_robustness.png', dpi=300)
     print("Saved plot to results/noise_robustness.png")
 
 if __name__ == "__main__":

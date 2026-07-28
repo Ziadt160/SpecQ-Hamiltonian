@@ -1,0 +1,20 @@
+E. Coli feature-count sweep (chi2 selection fit on train split only)
+============================================================================
+1935 samples, 17198 genes, 13.7% resistant
+
+  genes  blank tr  blank te    major   LR acc   LR bal   LR F1  SIM acc   SIM F1
+     16    61.2%     60.8%   0.8709   0.9432   0.8709  0.7785   0.9466   0.7801
+     32     6.4%      7.2%   0.8709   0.9466   0.8785  0.7919      -        -  
+     64     0.0%      0.0%   0.8709   0.9501   0.8691  0.7972   0.9157   0.6994
+    128     0.0%      0.0%   0.8709   0.9518   0.8644  0.8000      -        -  
+    256     0.0%      0.0%   0.8709   0.9552   0.8664  0.8116      -        -  
+    512     0.0%      0.0%   0.8709   0.9518   0.8531  0.7941      -        -  
+   1024     0.0%      0.0%   0.8709   0.9484   0.8341  0.7727      -        -  
+   2048     0.0%      0.0%   0.8709   0.9518   0.8360  0.7846      -        -  
+
+blank tr/te = fraction of samples that are all-zero after selection.
+Those samples are indistinguishable to any model of the form f(x^T P x),
+so they all receive one constant prediction.
+
+Accuracy should be read against the majority-class column, not against 0.5.
+F1 and balanced accuracy are the informative metrics on this label split.

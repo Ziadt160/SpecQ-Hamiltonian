@@ -5,7 +5,7 @@ import os
 from sklearn.model_selection import train_test_split
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
-from src.experiment_wine import load_and_preprocess_wine
+from experiments.experiment_wine import load_and_preprocess_wine
 
 def categorize_string_structure(s):
     """

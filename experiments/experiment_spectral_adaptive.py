@@ -8,11 +8,15 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.utils.data_loader import load_20newsgroups_projected, load_ecoli_reduced
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+from src.utils.data_loader import load_20newsgroups_projected
 from src.generators.spectral_pauli_generator import get_adaptive_spectral_paulis
-from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected as load_20news_orig
-from src.experiments.experiment_ecoli_exact import load_ecoli_n4_model_k
+# train_model_k lives in stress_test_spectral; this module previously imported a
+# nonexistent 'load_ecoli_n4_model_k' and then called train_model_k undefined.
+from src.analysis.stress_test_spectral import train_model_k
+
 
 def run_adaptive_experiment():
     os.makedirs('results', exist_ok=True)

@@ -4,10 +4,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from analysis_canonical_patterns import load_20newsgroups_projected
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
 from src.models.sim_classifier import SIMClassifier
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
+from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string, get_pauli_tensor
 import os
 
 def run_lasso_comparison():
@@ -108,7 +108,7 @@ def run_lasso_comparison():
     print(f"Overlap: {overlap_pct:.2f}%")
     
     # Save results
-    with open('../results/lasso_comparison.txt', 'w') as f:
+    with open('results/lasso_comparison.txt', 'w') as f:
         f.write(f"Lasso C=0.5 Results:\n")
         f.write(f"Selected Features: {n_selected}\n")
         f.write(f"Accuracy: {test_acc:.4f}\n")

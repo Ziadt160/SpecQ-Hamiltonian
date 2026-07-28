@@ -1,246 +1,285 @@
-# SpecQ-Hamiltonian: Spectral Interaction Selection in Flipped Quantum Subspace-Informed Models
+# SpecQ-Hamiltonian — Spectral Pauli Pruning for Flipped Quantum Classifiers
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![arXiv:2504.10542](https://img.shields.io/badge/arXiv-2504.10542-B31B1B.svg)](https://arxiv.org/abs/2504.10542)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![arXiv:2504.10542](https://img.shields.io/badge/builds%20on-arXiv%3A2504.10542-B31B1B.svg)](https://arxiv.org/abs/2504.10542)
 
-## 📄 Abstract
-Quantum machine learning (QML) often faces scalability challenges due to the high costs of encoding dense vector representations and the exponential growth of the observable basis. We present **SpecQ-Hamiltonian**, a library for **Hamiltonian Classifiers** that leverage a "flipped" architecture to decouple input encoding from quantum state variation. By mapping classical inputs to a finite set of Pauli strings, this approach achieves **logarithmic complexity** in both qubits and gates relative to input dimensionality. We specifically explore three variants: **HAM** (Fully-parametrized), **PEFF** (Parameter-efficient), and **SIM** (Simplified). Our results on benchmark datasets like E.Coli and 8x8 Digits demonstrate that identifying high-utility interactions via spectral moments enables competitive accuracy on NISQ-era hardware with minimal measurement overhead.
+**How few quantum observables does a Hamiltonian classifier actually need?**
 
----
+Flipped quantum models encode data into the *observable* rather than the state, reaching
+$O(\log d)$ qubits. But the Pauli basis grows as $4^n$, and the parent work
+([Tiblias et al., 2025](https://arxiv.org/abs/2504.10542)) selects the measured subset
+**at random**. This project asks whether that subset can be chosen well — and finds that
+it can, by a very large margin.
 
-## 🔬 Scientific Motivation
-
-Traditional Variational Quantum Classifiers (VQCs) encode data into quantum states $|\psi(x)\rangle$, which often requires deep circuits or many qubits ($O(d)$). This "data-loading bottleneck" limits their applicability to real-world datasets like high-resolution images or long text embeddings.
-
-**The Scientific Gap**: How can we perform high-dimensional classification using only $O(\log d)$ qubits without losing the expressive power of quantum feature spaces?
-
-**The Solution**: The **Flipped Model** (Jerbi et al., 2024). Instead of encoding data into states, we encode it into the **Hamiltonian observable**. This project extends this framework by introducing automated interaction selection heuristics (Spectral and QMI) to handle the $O(4^n)$ basis explosion.
+**Headline: 24 of 2,080 observables retain 95% of full-basis accuracy — an 86× reduction
+in measurement cost.**
 
 ---
 
-## 💡 Research Hypotheses
+## Results
 
-1.  **H1 (Sparsity)**: A sparse subset of Pauli interactions, selected via spectral moment analysis of the class-conditional covariance, can capture $\geq 90\%$ of the discriminative signal.
-2.  **H2 (Complexity)**: Hamiltonian encoding permits a logarithmic reduction in qubit count ($n = \lceil \log_2 d \rceil$) while maintaining parity with state-encoded VQCs.
-3.  **H3 (Robustness)**: By keeping the input encoding classical (in the Hamiltonian construction), the model is less sensitive to circuit noise compared to standard angle-encoded VQCs.
+All figures are re-measured from this codebase with leak-free train/test splits and
+multiple seeds. E. Coli is 13.7% positive, so accuracy is reported against a
+**majority-class baseline of 0.8709**, with F1 and balanced accuracy as the informative
+metrics.
 
----
+### 1. The measured basis can be cut by 1–2 orders of magnitude
 
-## 📐 Theoretical Background
+Smallest basis retaining a share of full-basis test F1 ([pruning_limits.txt](results/pruning_limits.txt), 5 seeds):
 
-### Quantum Hamiltonian Representations
-A system of $N$ qubits is described in a Hilbert space $\mathcal{H} = \mathbb{C}^{2^N}$. Any Hermitian operator $H$ can be decomposed into the Pauli basis $\mathcal{P}_N = \{I, X, Y, Z\}^{\otimes N}$:
+| Dataset | Qubits | Live basis | Full-basis F1 | k for 95% | Compression |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| 20 Newsgroups | 4 | 136 | 0.7893 | 8 | **17.0×** |
+| 20 Newsgroups | 6 | 2,080 | 0.8252 | 64 | **32.5×** |
+| E. Coli | 4 | 136 | 0.7011 | 12 | **11.3×** |
+| E. Coli | 6 | 2,080 | 0.6883 | **24** | **86.7×** |
 
-$$ H = \sum_{P \in \mathcal{P}_N} \alpha_P P $$
+Redundancy grows with basis size — the larger the Pauli basis, the more of it is wasted.
 
-The expectation value of $H$ with respect to a state $|\psi_\theta\rangle$ is:
+### 2. Half of any random Pauli basis is unmeasurable
 
-$$ \langle H \rangle_\theta = \sum_{P \in \mathcal{P}_N} \alpha_P \langle \psi_\theta | P | \psi_\theta \rangle $$
+For real-valued inputs, a Pauli string with an **odd number of $Y$ factors** has
+$x^\top P x \equiv 0$ — exactly zero, not small. Measuring it returns nothing regardless
+of shot budget. The count is $(4^n - 2^n)/2$:
 
-### Mapping Data to Observables
-In this library, inputs $x$ are mapped to coefficients $\alpha_P$. Specifically, for vectors $x$, we construct a rank-1 Hamiltonian:
+| $n$ | 4 | 6 | 8 | 10 |
+| :--- | ---: | ---: | ---: | ---: |
+| dead fraction | 46.9% | 49.2% | 49.8% | **49.95%** |
 
-$$ H(x) = |x\rangle \langle x| $$
+At the parent paper's tuned setting ($p{=}1000$ strings, $n{=}10$), roughly **500 of
+1,000 measured observables are identically zero**. Spectral ranking assigns them
+$|c_P| \approx 10^{-18}$ and places every one *below* every live string — first dead
+string at rank 136/256 ($n{=}4$) and 2080/4096 ($n{=}6$) — so any top-$k$ is 100% live at
+no cost. ([measurement_efficiency.txt](results/measurement_efficiency.txt))
 
-which is then decomposed into its Pauli components to be measured on quantum hardware.
+### 3. The ranking carries information beyond that filter
 
----
+Spectral is usually compared against strings drawn from the *whole* basis, which
+conflates "don't measure zeros" with "rank the rest well". Controlled against draws from
+**live strings only** ([spectral_vs_random_live.txt](results/spectral_vs_random_live.txt)):
 
-## 🏗️ Modeling Philosophy
+| Component | F1 gain | Share |
+| :--- | ---: | ---: |
+| Total advantage over a naive random draw | +0.118 | 100% |
+| — dead-string filter | +0.057 | 48% |
+| — **the ranking itself** | **+0.062** | **52%** |
 
-The models in this repository are designed for **NISQ Feasibility**. 
-- **Decoupled Learning**: We learn a universal variational state $|\psi_\theta\rangle$ that identifies the "subspace of interest" in the Hilbert space.
-- **Classic-Quantum Synergy**: High-order feature interactions are computed classically (effectively "subspace-informed"), while the quantum device performs the measurement of these interactions in the high-dimensional space.
+The ranking wins **17 of 20** configurations and is worth **+0.30 F1 at $k{=}8$** on
+E. Coli $n{=}6$. It matters most under aggressive pruning and washes out as $k$
+approaches the full basis, as it must.
 
----
+### 4. Beyond ~24 observables, extra strings buy memorisation
 
-## 📍 Model Architecture Overview
+E. Coli $n{=}6$, 1,354 training samples. Each retained string is exactly one parameter:
 
-The system follows a three-stage pipeline: **Interactive Preprocessing**, **Quantum Filtering**, and **Classical Aggregation**.
+| k | k/N | train F1 | test F1 | gap |
+| ---: | ---: | ---: | ---: | ---: |
+| 8 | 0.01 | 0.5489 | 0.5499 | −0.001 |
+| **24** | 0.02 | 0.6475 | **0.6553** | −0.008 |
+| 64 | 0.05 | 0.7329 | 0.6506 | +0.082 |
+| 128 | 0.09 | 0.8398 | 0.6593 | +0.181 |
+| 2,080 | 1.54 | 0.9402 | 0.6883 | +0.252 |
 
-![Flipped Architecture Overview](./figures/flipped_architecture.png)
+The generalisation gap opens at $k \approx 16$–$32$ — **2% of the training set**, far
+earlier than the usual $k \approx N$ rule of thumb. Going from 24 to 2,080 strings costs
+87× the measurement budget and buys **+0.033 test F1** while train F1 climbs 0.65 → 0.94.
+Below $k \approx 12$ the gap turns negative: genuine underfitting, so there is a floor.
 
----
+### 5. Negative result — the variational state contributes nothing
 
-## 🛠️ Detailed Model Architectures
+The decision function is
+$f(x) = \sigma\big(\sum_j (x^\top P_j x)\, w_j \langle\psi_\theta|P_j|\psi_\theta\rangle\big)$.
+Because $\langle P_j \rangle$ does not depend on the input and $w_j$ is free, the product
+$w_j \langle P_j\rangle$ is a single unconstrained vector — the quantum branch is a
+reparametrisation, not added expressivity.
 
-![Model Architecture Comparison](./figures/model_variants.png)
+Confirmed four independent ways:
 
-### The Evolutionary Design Rationale
+| Test | Result |
+| :--- | :--- |
+| Circuit trained / frozen at random init / deleted (5 seeds) | 0.9363 / **0.9373** / 0.9346 — frozen is nominally best |
+| HAM vs PEFF vs SIM vs SIM-without-circuit | circuit-free matches or wins ([variant_comparison.txt](results/variant_comparison.txt)) |
+| Shot budget 1k → analytic | every arm saturates at the smallest budget; 20% error on every $\langle P\rangle$ costs nothing |
+| **Algebraic** | with standardised features, damping $\langle P\rangle$ by $10^{-6}$ or flipping every sign leaves the fitted model **identical to $10^{-12}$** |
 
-Our architecture evolved through three distinct phases, each addressing a specific bottleneck in Hamiltonian classification.
-
-| Architecture | Interaction Mapping | Parametrization | Scaling Bottleneck |
-| :--- | :--- | :--- | :--- |
-| **HAM** | Full $O(4^n)$ Basis | Full Matrix $H_0$ | Memory ($O(2^n \times 2^n)$) |
-| **PEFF** | Padded Vectors | Feature Bias $b_\phi$ | Expressivity (Fixed state) |
-| **SIM** | Sparse Spectral | Pauli Weights $w_j$ | Measurement Overhead |
+The last line is a proof, not an observation: $e_j$ is constant across samples, so
+`StandardScaler` divides it out exactly, and a free $w_j$ absorbs the residual sign.
 
 > [!NOTE]
-> **Code Mapping**: `PEFF` is implemented via the learned bias term `self.b` in the `ExactSIMClassifier` (see [exact_sim_classifier.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/src/models/exact_sim_classifier.py#L78)).
-
-### 1. Fully-parametrized Hamiltonian (HAM)
-**Baseline Decision**: Inspired by Jerbi et al., we first explored the full Hamiltonian form $H(x) + H_0$. 
-- **Insight**: While theoretically universal, learning the full density operator $H_0$ is computationally expensive for $n > 5$.
-- **Implementation**: Our `ExactSIMClassifier` uses regularized weights to approximate these forms efficiently.
-
-### 2. Parameter-efficient Hamiltonian (PEFF)
-**Modeling Choice**: Shift learning from the Hamiltonian space to the **Feature Space**.
-- **The Innovation**: Instead of $H(x)$, we use $H(x + b)$, where $b$ is a learned classical bias.
-- **Research Insight**: This acts as a "Learned Feature Centering" mechanism, aligning the data cluster in the Hilbert space with the highest-variance regions of the quantum filter.
-- **Result**: Reduced parameter count from $4^n$ to $d$ while maintaining similar accuracy for NLP tasks.
-
-### 3. Simplified Hamiltonian (SIM) - Our Flagship
-**Parent Paper Improvement (Equation 9)**: Jerbi et al. primarily discuss the theoretical properties of flipped models. We improved this by proposing a **Decoupled Measurement Pipeline**.
-- **Decision Boundary**: $f(x) = \sigma( \sum w_j \alpha_j \langle \psi | P_j | \psi \rangle )$.
-- **Modeling improvement**: By learning weights $w_j$ *classicaly* (post-measurement), we allow for **Asynchronous Measurement Optimization**. We only measure the expectations $\langle P \rangle$ once for the entire batch.
-- **Insight**: This reduced training time by **~15x** compared to standard VQCs that require a full quantum forward pass for every sample.
+> **On noise.** Depolarizing noise damps $e_j \to \lambda_j e_j$ with $\lambda_j > 0$, and
+> $w_j' = w_j/\lambda_j$ recovers the identical function — under *global* depolarizing,
+> $\mathrm{sign}(\text{logit})$ and therefore accuracy are **exactly** invariant. Three
+> separate experiments (shot budget, pruning-under-noise, penalised pruning) found no
+> measurable noise effect. This architecture has no noise-robustness claim to make, and
+> the repository states so rather than reporting the flat curve as resilience. Pruning
+> reduces **measurement cost** linearly; it does not make the circuit quieter.
 
 ---
 
-## 🔬 Research Insights & Iterative Findings
+## Method
 
-### Try 1: Random Basis Selection
-- **Process**: Mapping 1000 features to random Pauli strings.
-- **Finding**: Accuracy plateaued early at ~65%. 
-- **Learning**: Random interaction mapping destroys the local geometry of the feature space. Interaction selection is **mandatory**, not optional.
+Rank every Pauli string by how much it contributes to the class-conditional difference
+matrix, then keep the top $k$.
 
-### Try 2: Spectral Interaction Selection (The Breakthrough)
-- **Process**: Using the Class Covariance Difference $\Delta = \Sigma_1 - \Sigma_0$ to rank Paulis.
-- **Insight**: We discovered that for gene expression data, only **~3% of the Pauli basis** carries 95% of the information energy.
-- **Result**: Accuracy jumped from 65% to **95.0%** on binary classification tasks using only 4 qubits.
+$$\Delta = \mathrm{Cov}(x \mid y{=}1) - \mathrm{Cov}(x \mid y{=}0), \qquad
+c_P = \tfrac{1}{2^n}\,\mathrm{Tr}(\Delta P)$$
 
-### Try 3: QMI vs. Spectral Energy
-- **Finding**: QMI (Mutual Information) identifies high-order correlations that Spectral selection misses, particularly in non-linear datasets like MNIST.
-- **Insight**: A hybrid selection (Spectral for linear signals, QMI for non-linear residuals) provides the most robust basis.
+Strings are ordered by $|c_P|$; an energy cutoff $\eta$ selects the smallest set reaching
+that share of the total. Implemented in
+[spectral_pauli_generator.py](src/generators/spectral_pauli_generator.py).
 
----
+**Cost.** The projection onto all $4^n$ strings uses a single vectorised contraction at
+$O(4^n \cdot 2^{2n})$, replacing a loop of $4^n$ matrix products at $O(4^n \cdot 2^{3n})$
+— bit-identical values, 5.8× faster measured at $n{=}4$ and widening as $2^n$.
 
-## 📈 Final Synthesis & Benchmark Results
+**Independent corroboration.** L1-regularised logistic regression, which knows nothing
+about Pauli structure, selects 118 interactions — **88.98% of them fall in the spectral
+top-118** ([lasso_comparison.txt](results/lasso_comparison.txt)).
 
-### Performance Summary (NISQ-Optimized)
-
-| Metric | State-Encoded VQC | SpecQ-Hamiltonian (Ours) | Improvement |
-| :--- | :--- | :--- | :--- |
-| **Max Features** | 20 ($O(n)$) | **1024** ($O(2^n)$) | **51x Scaling** |
-| **Accuracy (Wine)** | 88.5% | **95.01%** | +6.5% |
-| **Noise Robustness** | Drops 20% | **Drops < 5%** | Highly Robust |
-| **Train Speed** | 1.0x | **15.4x** | Order of Mag |
-
-### Key Project Findings:
-1.  **Quantum Expressivity**: The Variational State $|\psi_\theta\rangle$ acts as an "Optimal Subspace Filter". Our results show that a quantum filter consistently outperforms classical linear aggregators on the same Pauli features.
-2.  **NISQ Resilience**: Because our architecture keeps data in the Hamiltonian, it bypasses the "Noise-Floor" of deep feature-map circuits. We successfully ran $N=10$ MNIST simulations with realistic depolarizing noise.
-3.  **Optimal Sparsity**: Identifying the **Pauli Sweet Spot**. For a 1000-dimensional input, measurement overhead is minimized at **top-128 strings**, after which accuracy gains follow a diminishing returns curve.
-
-### Best Achievement:
-We successfully classified the **64-dimensional Digits dataset** using only **6 qubits** with a test accuracy of **~98%**. The `experiment_mnist.py` demonstrates that even with a reduced $O(\log d)$ qubit count, the Hamiltonian representation captures the essential pixel hierarchies.
+> [!IMPORTANT]
+> **`moment=` parameter.** `'covariance'` (default) follows the paper; `'second_moment'`
+> reproduces the original implementation, which omitted mean subtraction. The two select
+> substantially different bases (21–25% overlap at $k{=}16$, converging to 94% by
+> $k{=}128$) but are **statistically indistinguishable on accuracy** — a controlled
+> 5-seed comparison gives +0.040 at $k{=}8$, +0.074 at $k{=}16$, −0.041 at $k{=}128$,
+> against per-seed standard deviations of 0.02–0.08. The default is chosen on principle,
+> not on measured performance.
 
 ---
 
-## 🧬 Interaction Selection Strategies
+## Model variants
 
-![Spectral Selection Heuristic](./figures/spectral_selection.png)
+All three architectures from the parent paper are implemented, with measured parameter
+counts reproducing its stated scaling.
 
-### Spectral Pauli Selection
-Implemented in `src/generators/spectral_pauli_generator.py`.
-- **Heuristic**: Computes $\Delta = \Sigma_1 - \Sigma_0$ (Class covariance difference).
-- **Metric**: Strings $P$ are ranked by their spectral energy $c_P = |\text{Tr}(\Delta P)|$.
-- **Selection**: Adopts an energy cutoff $\eta$ (e.g., 0.95) to retain the minimal set of strings that explain the majority of class variance.
+| Variant | Hamiltonian | Parametrisation | Params ($n{=}4$) |
+| :--- | :--- | :--- | ---: |
+| **HAM** | full, $\psi^\dagger H \psi$ | matrix bias $H^0_\phi$ | 280 — $O(4^n)$ |
+| **PEFF** | full, $\psi^\dagger H \psi$ | input bias $b_\phi$ | **42** — $O(d)$ |
+| **SIM** | truncated to $p$ strings | Pauli weights $w_j$ | $O(p)$ |
 
-### Quadratic Mutual Information (QMI)
-Implemented in `src/generators/qmi_pauli_generator.py`.
-- **Heuristic**: Maximizes the Renyi's Quadratic Entropy between the interaction $x^T P x$ and the labels $y$.
-- **Advantage**: Better at capturing non-Gaussian dependencies than spectral moments.
+Head-to-head, 3 seeds, spectral top-32 basis for SIM
+([variant_comparison.txt](results/variant_comparison.txt)):
 
----
+| Variant | E. Coli acc / F1 | 20 News acc / F1 | Params |
+| :--- | :--- | :--- | ---: |
+| HAM | 0.8663 / 0.000 | 0.5671 / 0.724 | 292 |
+| PEFF | 0.9312 / 0.687 | 0.8089 / 0.835 | **54** |
+| SIM | **0.9306 / 0.720** | 0.8188 / 0.840 | 84 |
+| SIM, circuit removed | 0.9283 / 0.706 | **0.8231 / 0.845** | 84 |
 
-## 🧪 Experiments and Results
+PEFF delivers its promise — within a point of SIM at a third of the parameters. HAM
+collapsed to a single class (balanced accuracy exactly 0.5000) under shared
+hyperparameters; the parent paper tunes each variant separately with 8–32 ansatz layers
+against the 3 used here, so this is a fair-comparison artifact rather than a verdict.
 
-### Benchmark Datasets
+Two caveats found during implementation, documented rather than hidden:
 
-| Dataset | Type | Features | Qubits |
-| :--- | :--- | :--- | :--- |
-| **E.Coli** | Bio-Informatics | 1,000+ Genes | 4 - 6 |
-| **SST2** | NLP | 300 (word2vec) | 9 |
-| **MNIST** | CV | 784 | 10 |
-
-### Key Performance Insights
-
-| Model | SST2 Acc* | MNIST (8x8) Acc | Scaling |
-| :--- | :--- | :--- | :--- |
-| **Classical LOG** | 80.4% | 99.1% | Linear |
-| **VQC (Angle)** | 78.2% | 94.5% | $O(d)$ Qubits |
-| **SIM (Ours)** | **80.1%** | **98.0%** | **$O(\log d)$ Qubits** |
-
-*\*SST2 results are literature benchmarks for the Flipped Model architecture; local SST2 experiment code is pending migration.*
-
-**Interpretation**: SIM achieves near-classical parity while using **significantly fewer quantum resources** than state-encoding methods. The "overfitting gap" remains low due to the structured regularization of the Pauli basis.
+- **PEFF's Hamiltonian is positive semi-definite** as written (a sum of rank-1 outer
+  products), so $\psi^\dagger H \psi \ge 0$ always and a fixed 0.5 threshold emits one
+  class for every input. `PEFFClassifier` adds a single learnable scalar offset.
+- **`load_ecoli_reduced` leaks**: it fits chi2 selection on the full dataset including
+  test labels. It is retained only for non-evaluative geometry analysis and warns at
+  call time. Use `load_ecoli_split` for anything reported.
 
 ---
 
-## 🧱 NISQ Hardware Implications
+## Getting started
 
-### Circuit Depth and Coherence
-The models implement **Hardware-Efficient Ansätze** (Strongly Entangling Layers) with $L \leq 32$.
-- **Gate Count**: $O(L \cdot n)$. For $n=10$ (MNIST), this is ~300 gates, fitting within the coherence times of modern IBM Quantum devices.
-- **Measurement Overhead**: $O(p)$ measurements. For $p=1000$ strings, this is comparable to standard tomography but provides much higher classification utility.
-
-### Error Mitigation
-The `NISQSIMClassifier` incorporates:
-- **T1/T2 Relaxation**: Modeled on `default.mixed`.
-- **Readout Bias Calibration**: Compensates for $|0\rangle \to |1\rangle$ flips.
-*Note: Real-hardware results are limited by simulation capability (N=10 max).*
-
-### 🔬 Advanced Research & Validation
-Beyond basic accuracy, this repository includes several advanced analysis suites:
-- **Lasso vs. Spectral Selection ([experiment_lasso.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/experiments/experiment_lasso.py))**: Demonstrates that Spectral Moments identify many of the same high-utility interactions as L1-regularized classical models.
-- **Canonical Patterns ([analysis_canonical_patterns.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/src/analysis/analysis_canonical_patterns.py))**: Identifies "Golden Interaction Sets" that remain invariant across different dataset scales.
-- **Noise Robustness Sweep ([experiment_noise_robustness.py](file:///d:/Evoth%20Labs/SIM-Flipped%20Models/experiments/experiment_noise_robustness.py))**: Quantifies the resilience of Hamiltonian encoding under depolarizing noise.
-
----
-
-## 🚀 Reproducibility Guide
-
-### 1. Environment Setup
 ```bash
-git clone https://github.com/Evoth/SIM-Flipped-Models.git
-cd SIM-Flipped-Models
-pip install -r requirements.txt
+git clone https://github.com/Ziadt160/SIM-Flipped-Models.git
 ```
 
-### 2. Training the Hybrid Model
-To run the exact simulation on the E.Coli dataset:
+Install the package, not just the requirements — the experiments import `src.*` as a
+package:
+
 ```bash
-python experiments/experiment_ecoli_exact.py
+pip install -e .
 ```
 
-### 3. Generating Interaction Diagrams
+Run from the repository root; everything writes to `results/`.
+
 ```bash
-python src/analysis/analyze_pauli_geometry.py
+python experiments/experiment_pruning_limits.py
+```
+
+The two experiments most worth reading first:
+
+```bash
+python experiments/experiment_measurement_efficiency.py
+```
+```bash
+python experiments/experiment_circuit_ablation.py
 ```
 
 ---
 
-## 📂 Codebase Guide
+## Repository layout
 
-- `src/models/`: Implementation of Hamiltonian architectures (Torch-integrated).
-- `src/generators/`: Algorithms for Pauli string selection (Spectral, QMI).
-- `src/utils/`: High-performance utilities and centralized data loaders.
-- `src/analysis/`: Diagnostic tools and interaction mapping.
-- `experiments/`: Full suites for reproducing paper benchmarks.
-- `results/`: Visual and numerical experimental outputs.
-- `pdf/`: Reference research papers and theoretical derivations.
-- `docs/`: Technical deep-dives and methodology summaries.
+| Path | Contents |
+| :--- | :--- |
+| [`src/models/`](src/models) | `exact_sim_classifier.py` (SIM, Eq. 9), `hamiltonian_variants.py` (HAM, PEFF), `nisq_sim_classifier.py`, `sim_classifier.py` |
+| [`src/generators/`](src/generators) | Spectral moment selection (Algorithm 3) and Cauchy-Schwarz QMI |
+| [`src/utils/`](src/utils) | Pauli algebra and leak-free data loaders |
+| [`src/analysis/`](src/analysis) | Interaction geometry, canonical patterns, stress tests |
+| [`experiments/`](experiments) | 33 benchmark and ablation suites |
+| [`results/`](results) | Numerical output (`.txt`, `.csv`) and figures |
+
+**Key experiments**
+
+| Experiment | Question |
+| :--- | :--- |
+| [`pruning_limits`](experiments/experiment_pruning_limits.py) | How far can the basis be cut, and where does overfitting start? |
+| [`measurement_efficiency`](experiments/experiment_measurement_efficiency.py) | How much of a random basis is structurally unmeasurable? |
+| [`spectral_vs_random_live`](experiments/experiment_spectral_vs_random_live.py) | Is the ranking informative, or just a dead-string filter? |
+| [`circuit_ablation`](experiments/experiment_circuit_ablation.py) | Does the variational state add expressivity? |
+| [`variant_comparison`](experiments/experiment_variant_comparison.py) | HAM vs PEFF vs SIM under identical conditions |
+| [`delta_definition`](experiments/experiment_delta_definition.py) | Covariance vs second moment |
+| [`shot_budget`](experiments/experiment_shot_budget.py) | Does finite sampling favour a smaller basis? |
+| [`ecoli_feature_count`](experiments/experiment_ecoli_feature_count.py) | Is the $2^n$ gene budget an artifact? |
 
 ---
 
-## 📜 References
-- **Tiblias et al. (2025)**: *An Efficient Quantum Classifier Based on Hamiltonian Representations*.
-- **Jerbi et al. (2024)**: *The Power of Flipped Models*.
-- **Cerezo et al. (2021)**: *Variational Quantum Algorithms*.
+## Datasets
+
+| Dataset | Type | Raw size | Reduced to | Qubits |
+| :--- | :--- | :--- | :--- | ---: |
+| E. Coli (CTZ resistance) | Bio-informatics | 1,935 × 17,198 genes | $2^n$ via chi2 | 4 – 6 |
+| 20 Newsgroups | NLP | ~1,900 docs, TF-IDF 5,000 | $2^n$ via PCA | 4 – 6 |
+| Digits (8×8) | Vision | 1,797 × 64 | none needed | 6 |
+| Wine | Tabular | 178 × 13 | zero-padded to 16 | 4 |
+
+> [!WARNING]
+> **Reducing E. Coli to $2^4{=}16$ genes leaves 61% of samples as all-zero vectors**, which
+> any model of the form $f(x^\top P x)$ must map to one constant prediction. The effect
+> disappears by 64 genes. Plain logistic regression on 256 genes reaches F1 0.812, above
+> every Pauli configuration tested — the quadratic map does not add discriminative power
+> on this dataset. ([ecoli_feature_count.txt](results/ecoli_feature_count.txt))
+
+SST2 and full MNIST appear in the parent paper but are **not** implemented here: both
+need sequence inputs ($s>1$, Eq. 5) and a basis beyond what the dense Pauli tensor holds.
 
 ---
 
-## 🤝 License
-This project is licensed under the MIT License.
+## References
+
+- **Tiblias, Schroeder, Zhang, Gachechiladze, Gurevych (2025).** *An Efficient Quantum
+  Classifier Based on Hamiltonian Representations.*
+  [arXiv:2504.10542](https://arxiv.org/abs/2504.10542) — the parent paper; HAM, PEFF, SIM
+  and Eq. 9 are theirs.
+- **Jerbi, Gyurik, Marshall, Molteni, Dunjko (2024).** *Shadows of quantum machine
+  learning.* Nature Communications 15:5676 — introduces flipped models.
+- **Cerezo et al. (2021).** *Variational Quantum Algorithms.* Nature Reviews Physics 3.
+- **Mohammed, Z. T.** *Spectral Pauli Pruning: Efficient Feature Selection for Flipped
+  Quantum Hamiltonian Classifiers* — this work
+  ([pdf](pdf/Spectral_Pauli_Generator.pdf)).
+
+See [CHANGELOG.md](CHANGELOG.md) for corrections applied to the implementation and the
+manuscript claims they affect.
+
+---
+
+## License
+
+MIT.

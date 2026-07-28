@@ -16,7 +16,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.utils.data_loader import load_20newsgroups_projected as load_and_preprocess_20newsgroups_n4, download_20newsgroups_manual
+from src.utils.data_loader import load_20newsgroups_n4 as load_and_preprocess_20newsgroups_n4, download_20newsgroups_manual
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
 from src.models.exact_sim_classifier import ExactSIMClassifier

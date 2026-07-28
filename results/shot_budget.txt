@@ -1,0 +1,107 @@
+Shot-budget experiment: finite sampling is not absorbable by w_j
+==============================================================================
+Seeds: 3  |  k: [16, 32, 64]  |  budgets: [1000, 10000, 100000, None]
+
+Total budget S is split evenly over the k selected observables.
+A dead string (x^T P x == 0 identically) consumes S/k shots and
+contributes nothing, so random draws waste roughly half of S.
+
+  dataset     k    budgetarm             dead   wasted   est err       F1
+  20News     16     1,000random_all       7.3      455    0.0791   0.6888
+  20News     16     1,000random_live      0.0        0    0.0991   0.6822
+  20News     16     1,000spectral         0.0        0    0.0927   0.7797
+  20News     16    10,000random_all       7.3     4583    0.0288   0.6888
+  20News     16    10,000random_live      0.0        0    0.0304   0.6840
+  20News     16    10,000spectral         0.0        0    0.0283   0.7822
+  20News     16   100,000random_all       7.3    45833    0.0094   0.6888
+  20News     16   100,000random_live      0.0        0    0.0096   0.6840
+  20News     16   100,000spectral         0.0        0    0.0095   0.7822
+  20News     16  analyticrandom_all       7.3        0    0.0000   0.6888
+  20News     16  analyticrandom_live      0.0        0    0.0000   0.6840
+  20News     16  analyticspectral         0.0        0    0.0000   0.7822
+  20News     32     1,000random_all      16.3      506    0.1266   0.6881
+  20News     32     1,000random_live      0.0        0    0.1384   0.7299
+  20News     32     1,000spectral         0.0        0    0.1479   0.7778
+  20News     32    10,000random_all      16.3     5096    0.0424   0.6958
+  20News     32    10,000random_live      0.0        0    0.0419   0.7223
+  20News     32    10,000spectral         0.0        0    0.0422   0.7788
+  20News     32   100,000random_all      16.3    51042    0.0153   0.6881
+  20News     32   100,000random_live      0.0        0    0.0131   0.7299
+  20News     32   100,000spectral         0.0        0    0.0125   0.7778
+  20News     32  analyticrandom_all      16.3        0    0.0000   0.6881
+  20News     32  analyticrandom_live      0.0        0    0.0000   0.7299
+  20News     32  analyticspectral         0.0        0    0.0000   0.7778
+  20News     64     1,000random_all      29.0      435    0.1901   0.7288
+  20News     64     1,000random_live      0.0        0    0.2064   0.7532
+  20News     64     1,000spectral         0.0        0    0.1969   0.7975
+  20News     64    10,000random_all      29.0     4524    0.0732   0.7294
+  20News     64    10,000random_live      0.0        0    0.0652   0.7557
+  20News     64    10,000spectral         0.0        0    0.0630   0.7932
+  20News     64   100,000random_all      29.0    45298    0.0192   0.7288
+  20News     64   100,000random_live      0.0        0    0.0181   0.7532
+  20News     64   100,000spectral         0.0        0    0.0173   0.7938
+  20News     64  analyticrandom_all      29.0        0    0.0000   0.7288
+  20News     64  analyticrandom_live      0.0        0    0.0000   0.7532
+  20News     64  analyticspectral         0.0        0    0.0000   0.7975
+  EColi      16     1,000random_all       7.3      455    0.0791   0.5182
+  EColi      16     1,000random_live      0.0        0    0.0991   0.6118
+  EColi      16     1,000spectral         0.0        0    0.0905   0.6845
+  EColi      16    10,000random_all       7.3     4583    0.0288   0.5182
+  EColi      16    10,000random_live      0.0        0    0.0304   0.6229
+  EColi      16    10,000spectral         0.0        0    0.0253   0.6767
+  EColi      16   100,000random_all       7.3    45833    0.0094   0.5182
+  EColi      16   100,000random_live      0.0        0    0.0096   0.6229
+  EColi      16   100,000spectral         0.0        0    0.0082   0.6767
+  EColi      16  analyticrandom_all       7.3        0    0.0000   0.5182
+  EColi      16  analyticrandom_live      0.0        0    0.0000   0.6229
+  EColi      16  analyticspectral         0.0        0    0.0000   0.6767
+  EColi      32     1,000random_all      16.3      506    0.1266   0.6401
+  EColi      32     1,000random_live      0.0        0    0.1384   0.6753
+  EColi      32     1,000spectral         0.0        0    0.1368   0.7133
+  EColi      32    10,000random_all      16.3     5096    0.0424   0.6092
+  EColi      32    10,000random_live      0.0        0    0.0419   0.6632
+  EColi      32    10,000spectral         0.0        0    0.0390   0.7133
+  EColi      32   100,000random_all      16.3    51042    0.0153   0.6401
+  EColi      32   100,000random_live      0.0        0    0.0131   0.6753
+  EColi      32   100,000spectral         0.0        0    0.0137   0.7133
+  EColi      32  analyticrandom_all      16.3        0    0.0000   0.6401
+  EColi      32  analyticrandom_live      0.0        0    0.0000   0.6753
+  EColi      32  analyticspectral         0.0        0    0.0000   0.7133
+  EColi      64     1,000random_all      29.0      435    0.1901   0.7149
+  EColi      64     1,000random_live      0.0        0    0.2064   0.6644
+  EColi      64     1,000spectral         0.0        0    0.2045   0.6836
+  EColi      64    10,000random_all      29.0     4524    0.0732   0.7149
+  EColi      64    10,000random_live      0.0        0    0.0652   0.6704
+  EColi      64    10,000spectral         0.0        0    0.0581   0.6883
+  EColi      64   100,000random_all      29.0    45298    0.0192   0.7149
+  EColi      64   100,000random_live      0.0        0    0.0181   0.6644
+  EColi      64   100,000spectral         0.0        0    0.0184   0.6836
+  EColi      64  analyticrandom_all      29.0        0    0.0000   0.7149
+  EColi      64  analyticrandom_live      0.0        0    0.0000   0.6644
+  EColi      64  analyticspectral         0.0        0    0.0000   0.6836
+
+Shot cost to reach the analytic-limit F1 of each arm:
+  20News k=16:
+      spectral      ceiling F1 0.7822   shots for 98% of it: 1,000
+      random_live   ceiling F1 0.6840   shots for 98% of it: 1,000
+      random_all    ceiling F1 0.6888   shots for 98% of it: 1,000
+  20News k=32:
+      spectral      ceiling F1 0.7778   shots for 98% of it: 1,000
+      random_live   ceiling F1 0.7299   shots for 98% of it: 1,000
+      random_all    ceiling F1 0.6881   shots for 98% of it: 1,000
+  20News k=64:
+      spectral      ceiling F1 0.7975   shots for 98% of it: 1,000
+      random_live   ceiling F1 0.7532   shots for 98% of it: 1,000
+      random_all    ceiling F1 0.7288   shots for 98% of it: 1,000
+  EColi k=16:
+      spectral      ceiling F1 0.6767   shots for 98% of it: 1,000
+      random_live   ceiling F1 0.6229   shots for 98% of it: 1,000
+      random_all    ceiling F1 0.5182   shots for 98% of it: 1,000
+  EColi k=32:
+      spectral      ceiling F1 0.7133   shots for 98% of it: 1,000
+      random_live   ceiling F1 0.6753   shots for 98% of it: 1,000
+      random_all    ceiling F1 0.6401   shots for 98% of it: 1,000
+  EColi k=64:
+      spectral      ceiling F1 0.6836   shots for 98% of it: 1,000
+      random_live   ceiling F1 0.6644   shots for 98% of it: 1,000
+      random_all    ceiling F1 0.7149   shots for 98% of it: 1,000
