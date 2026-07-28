@@ -14,7 +14,7 @@ from sklearn.metrics import accuracy_score
 from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
 from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.utils.pauli_utils import generate_pauli_strings
-from src.experiments.experiment_20newsgroups import load_and_preprocess_20newsgroups_n4
+from src.utils.data_loader import load_20newsgroups_n4 as load_and_preprocess_20newsgroups_n4
 
 def train_model(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, name):
     print(f"\n--- Training {name} (Terms: {len(pauli_strings)}) ---")

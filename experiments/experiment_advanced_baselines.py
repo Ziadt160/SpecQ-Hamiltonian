@@ -5,10 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from pauli_utils import generate_pauli_strings
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from analysis_canonical_patterns import load_20newsgroups_projected
-from exact_sim_classifier import ExactSIMClassifier
+from src.utils.pauli_utils import generate_pauli_strings
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
+from src.models.exact_sim_classifier import ExactSIMClassifier
 
 # Mock the NoisySIMClassifier behavior but without noise for clean baseline comparison
 class BaselineSIMClassifier(ExactSIMClassifier):

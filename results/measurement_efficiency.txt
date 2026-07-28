@@ -1,0 +1,53 @@
+Measurement efficiency: random vs spectral Pauli selection
+==========================================================================
+
+A Pauli string with an odd number of Y factors has x^T P x == 0 for
+every real x, so measuring it yields no information. Verified:
+
+  n=2: max |x^T P x| over 6 dead strings = 4.44e-16  (live minimum: 9.404)
+  n=3: max |x^T P x| over 28 dead strings = 1.33e-15  (live minimum: 9.532)
+  n=4: max |x^T P x| over 120 dead strings = 2.66e-15  (live minimum: 13.117)
+  n=5: max |x^T P x| over 496 dead strings = 6.26e-15  (live minimum: 17.126)
+
+Dead fraction of the full basis, (4^n - 2^n) / (2 * 4^n):
+    n       basis        dead   fraction
+    2          16           6    37.50%
+    3          64          28    43.75%
+    4         256         120    46.88%
+    5        1024         496    48.44%
+    6        4096        2016    49.22%
+    7       16384        8128    49.61%
+    8       65536       32640    49.80%
+    9      262144      130816    49.90%
+   10     1048576      523776    49.95%
+   11     4194304     2096128    49.98%
+   12    16777216     8386560    49.99%
+
+Wasted measurements in a random draw of p strings
+(p values are the paper's own sweep; its tuned SIM uses p=1000):
+    n      p     dead    wasted
+    4     50   46.9%        23
+    4    100   46.7%        47
+    6     50   48.4%        24
+    6    100   49.5%        50
+    6    500   49.1%       245
+    6   1000   49.1%       491
+    8     50   49.1%        25
+    8    100   49.8%        50
+    8    500   49.6%       248
+    8   1000   49.8%       498
+   10     50   49.6%        25
+   10    100   49.5%        49
+   10    500   50.1%       250
+   10   1000   50.0%       500
+
+Spectral ranking places every dead string after every live one:
+  dataset    n   first dead rank   live strings
+  EColi      4               136            136
+  EColi      6              2080           2080
+  20News     4               136            136
+  20News     6              2079           2080
+
+Consequence: at the paper's tuned setting (p=1000, n=10) roughly 500
+of the 1000 measured observables are identically zero. Spectral
+selection removes that waste without any accuracy argument.

@@ -12,10 +12,10 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from exact_sim_classifier import ExactSIMClassifier
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from pauli_utils import generate_pauli_strings
-from experiment_ecoli_exact import load_ecoli_n4
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.utils.pauli_utils import generate_pauli_strings
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
 
 def add_feature_noise(X, noise_level=0.1):
     """
@@ -41,7 +41,7 @@ def train_model(model, X_train, y_train, epochs=100, lr=0.01):
 
 def run_feature_noise_experiment(n_seeds=5):
     print("Loading E. Coli (N=4)...")
-    X, y = load_ecoli_n4()
+    X_genes, y = load_ecoli_raw()
     
     # Noise levels to sweep
     noise_levels = np.linspace(0, 1.0, 11) # 0.0 to 1.0
@@ -53,9 +53,11 @@ def run_feature_noise_experiment(n_seeds=5):
     
     for seed in range(n_seeds):
         print(f"--- Seed {seed+1}/{n_seeds} ---")
-        X_train_clean, X_test_clean, y_train, y_test = train_test_split(
-            X, y, test_size=0.3, random_state=42+seed
+        Xtr_raw, Xte_raw, y_train, y_test = train_test_split(
+            X_genes, y, test_size=0.3, random_state=42+seed
         )
+        # chi2 selection fit on the training split only (no test-label leakage)
+        X_train_clean, X_test_clean, _ = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=4)
         
         # Train on Noisy, Test on Clean (Generalization check)
         for i, noise_lvl in enumerate(noise_levels):
@@ -111,7 +113,7 @@ def run_feature_noise_experiment(n_seeds=5):
     plt.title('Robustness to Feature Noise: Spectral vs Full')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('../results/feature_noise_sweep.png')
+    plt.savefig('results/feature_noise_sweep.png')
     print("Saved plot to results/feature_noise_sweep.png")
 
 if __name__ == "__main__":

@@ -12,10 +12,10 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from exact_sim_classifier import ExactSIMClassifier
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from pauli_utils import generate_pauli_strings
-from experiment_ecoli_exact import load_ecoli_n4
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.utils.pauli_utils import generate_pauli_strings
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
 import random
 
 def train_and_evaluate(model, X_train, y_train, X_test, y_test, epochs=200):
@@ -44,7 +44,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test, epochs=200):
 
 def run_overfitting_gap_experiment(n_seeds=5):
     print("Loading E. Coli (N=4)...")
-    X, y = load_ecoli_n4()
+    X_genes, y = load_ecoli_raw()
     
     # Basis sizes to sweep
     k_values = [2, 4, 8, 16, 32, 64, 128, 256] 
@@ -63,9 +63,11 @@ def run_overfitting_gap_experiment(n_seeds=5):
     
     for seed in range(n_seeds):
         print(f"--- Seed {seed+1}/{n_seeds} ---")
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.3, random_state=42+seed
+        Xtr_raw, Xte_raw, y_train, y_test = train_test_split(
+            X_genes, y, test_size=0.3, random_state=42+seed
         )
+        # chi2 selection fit on the training split only (no test-label leakage)
+        X_train, X_test, _ = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=4)
         
         # 1. Generate Spectral Basis (Full ranking)
         spectral_ranking, _, _ = generate_spectral_pauli_strings(X_train, y_train, 4)
@@ -115,7 +117,7 @@ def run_overfitting_gap_experiment(n_seeds=5):
     plt.legend()
     plt.xscale('log', base=2)
     plt.grid(True, alpha=0.3)
-    plt.savefig('../results/overfitting_gap.png')
+    plt.savefig('results/overfitting_gap.png')
     print("Saved plot to results/overfitting_gap.png")
     
     # Detailed Plot (Train vs Test)
@@ -145,7 +147,7 @@ def run_overfitting_gap_experiment(n_seeds=5):
     plt.grid(True)
     
     plt.tight_layout()
-    plt.savefig('../results/overfitting_detailed.png')
+    plt.savefig('results/overfitting_detailed.png')
     print("Saved detailed plot to results/overfitting_detailed.png")
 
 if __name__ == "__main__":
