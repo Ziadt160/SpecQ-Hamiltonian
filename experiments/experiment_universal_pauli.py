@@ -10,8 +10,8 @@ from sklearn.datasets import load_wine, load_digits
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from src.exact_sim_classifier import ExactSIMClassifier
-from src.experiment_ecoli_exact_ablation import load_ecoli_n4
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_ecoli_split
 
 from src.utils.seeds import set_seed
 set_seed()
@@ -76,10 +76,17 @@ def load_mnist_n4():
     return X_norm, y
 
 # --- Training / Eval Loop ---
-def evaluate_dataset(name, load_fn):
+def split_loader(load_fn, test_size=0.3, random_state=42):
+    """Adapts an (X, y) loader into a () -> (X_train, X_test, y_train, y_test) split fn."""
+    def _split():
+        X, y = load_fn()
+        return train_test_split(X, y, test_size=test_size, random_state=random_state)
+    return _split
+
+
+def evaluate_dataset(name, split_fn):
     print(f"\n=== Evaluating on {name} ===")
-    X, y = load_fn()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    X_train, X_test, y_train, y_test = split_fn()
     
     # 1. Train with Top 32 E. coli Strings
     print(f"Training on {name} with Top 32 E. coli Pauli Strings...")
@@ -113,16 +120,19 @@ def evaluate_dataset(name, load_fn):
 def run_universal_experiment():
     results = {}
     
-    # 1. E. coli (Baseline check)
-    acc_ecoli = evaluate_dataset("E. Coli (CTZ)", load_ecoli_n4)
+    # 1. E. coli (Baseline check) - chi2 selection fit on the training split only
+    acc_ecoli = evaluate_dataset(
+        "E. Coli (CTZ)",
+        lambda: load_ecoli_split(n_qubits=4, test_size=0.3, random_state=42),
+    )
     results['EColi'] = acc_ecoli
 
     # 2. Wine
-    acc_wine = evaluate_dataset("Wine (Class 0)", load_wine_n4)
+    acc_wine = evaluate_dataset("Wine (Class 0)", split_loader(load_wine_n4))
     results['Wine'] = acc_wine
-    
+
     # 3. MNIST
-    acc_mnist = evaluate_dataset("MNIST (Digit 0)", load_mnist_n4)
+    acc_mnist = evaluate_dataset("MNIST (Digit 0)", split_loader(load_mnist_n4))
     results['MNIST'] = acc_mnist
     
     # Save Report

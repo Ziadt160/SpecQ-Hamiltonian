@@ -1,0 +1,27 @@
+Optimal Pauli-basis size as a function of noise and shot budget
+==============================================================================
+Seeds: 3  k: [4, 8, 16, 32, 64, 128]  p: [0.0, 0.01, 0.05, 0.1, 0.2]
+
+Damping is exact: DepolarizingChannel(p) per qubit shrinks each
+non-identity Pauli factor by (1-4p/3); verified to 1.6e-13.
+
+Best k (by F1) for each noise / budget combination:
+
+  EColi:
+        budget       p=0.0      p=0.01      p=0.05       p=0.1       p=0.2
+         1,000  32 (0.713)  32 (0.713)  32 (0.713)  32 (0.713)  32 (0.713)
+        10,000  32 (0.713)  32 (0.713)  32 (0.705)  32 (0.715)  32 (0.713)
+      analytic  32 (0.713)  32 (0.713)  32 (0.713)  32 (0.713)  32 (0.713)
+
+  20News:
+        budget       p=0.0      p=0.01      p=0.05       p=0.1       p=0.2
+         1,000  64 (0.797)  64 (0.797)  64 (0.797)  64 (0.797)  64 (0.797)
+        10,000  64 (0.794)  64 (0.795) 128 (0.790) 128 (0.797)  64 (0.792)
+      analytic  64 (0.797)  64 (0.797)  64 (0.797)  64 (0.797)  64 (0.797)
+
+Spectral vs random at the largest basis (k=128), F1:
+  dataset      budget      p=0.0     p=0.01     p=0.05      p=0.1      p=0.2
+  EColi         1,000     -0.006     -0.006     -0.006     -0.006     -0.004
+  EColi      analytic     -0.007     -0.003     -0.001     -0.006     -0.006
+  20News        1,000     -0.003     -0.003     -0.003     -0.003     -0.003
+  20News     analytic     -0.003     -0.003     -0.003     -0.003     -0.003

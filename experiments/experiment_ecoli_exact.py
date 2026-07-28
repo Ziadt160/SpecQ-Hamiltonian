@@ -6,8 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.experiment_ecoli_reduced import load_and_reduce_ecoli
-from src.utils.data_loader import load_ecoli_reduced as load_ecoli_n4
+from src.utils.data_loader import load_ecoli_split
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
 from src.models.exact_sim_classifier import ExactSIMClassifier
@@ -52,8 +51,8 @@ def train_exact_sim(X_train, y_train, X_test, y_test, epochs=300):
     return acc, losses
 
 def run_comparison():
-    X, y = load_ecoli_n4()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # chi2 selection is fit on the training split only (no test-label leakage)
+    X_train, X_test, y_train, y_test = load_ecoli_split(n_qubits=4, test_size=0.3, random_state=42)
     
     # 1. Classical SIM (Baseline)
     print("\n--- Training Classical SIM (Logistic Regression) ---")

@@ -7,14 +7,29 @@ name = "sim-flipped-models"
 version = "0.1.0"
 description = "SpecQ-Hamiltonian: Spectral Interaction Selection in Flipped Quantum Subspace-Informed Models"
 readme = "README.md"
-requires-python = ">=3.8"
-license = {text = "MIT"}
-authors = [
-    {name = "Evoth Labs"}
-]
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Evoth Labs" }]
 
-dependencies = ["torch>=2.0", "pennylane>=0.35", "numpy", "scikit-learn", "pandas", "hydra-core==1.3.2", "omegaconf", "matplotlib", "seaborn", "tqdm"]
+# Every entry below is imported somewhere in src/ or experiments/.
+#   scipy       -> src/generators/qmi_pauli_generator.py
+#   seaborn     -> src/analysis/analyze_pauli_geometry.py, experiments/experiment_stability_validation.py
+#   hydra-core  -> src/utils/seeds.py, experiments/experiment_mnist.py, test_hydra.py
+# scipy and seaborn were previously required but undeclared; tqdm was declared but
+# is imported nowhere, and has been dropped.
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "torch>=2.0",
+    "pennylane>=0.35",
+    "hydra-core==1.3.2",
+    "omegaconf",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src", "src.*"]
+include = ["src", "src.*", "experiments", "experiments.*"]

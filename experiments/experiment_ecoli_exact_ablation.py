@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.utils.data_loader import load_ecoli_reduced as load_ecoli_n4
+from src.utils.data_loader import load_ecoli_split
 from src.utils.pauli_utils import generate_pauli_strings
 from src.models.exact_sim_classifier import ExactSIMClassifier
 
@@ -112,8 +112,8 @@ def evaluate_subset(model, X_test, y_test, active_indices):
 # --- Main Execution ---
 def run_abliation_study():
     # 1. Load Data
-    X, y = load_ecoli_n4()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # chi2 selection is fit on the training split only (no test-label leakage)
+    X_train, X_test, y_train, y_test = load_ecoli_split(n_qubits=4, test_size=0.3, random_state=42)
     
     # 2. Train Full Model
     model = train_model(X_train, y_train)

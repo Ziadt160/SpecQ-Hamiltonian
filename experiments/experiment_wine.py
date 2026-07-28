@@ -1,40 +1,22 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+
 from src.utils.data_loader import load_wine_normalized as load_and_preprocess_wine
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
 
 from src.utils.seeds import set_seed
 set_seed()
-
-def load_and_preprocess_wine():
-    """
-    Loads Wine dataset and pads to 16 dimensions (4 qubits).
-    Target: 3 classes (0, 1, 2).
-    """
-    data = load_wine()
-    X = data.data
-    y = data.target
-    
-    # 1. Standardize original features (important for real data)
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # 2. Pad to 16 dimensions
-    n_samples, n_features = X_scaled.shape
-    n_qubits = 4
-    target_dim = 2**n_qubits
-    
-    if n_features > target_dim:
-        raise ValueError(f"Feature dim {n_features} > Qubit dim {target_dim}")
-        
-    X_padded = np.zeros((n_samples, target_dim))
-    X_padded[:, :n_features] = X_scaled
-    
-    # 3. Normalize (Quantum State Normalization)
-    X_norm = X_padded / np.linalg.norm(X_padded, axis=1, keepdims=True)
-    
-    return X_norm, y, n_qubits
+# Note: this module previously redefined load_and_preprocess_wine here, which
+# shadowed the import above and referenced several names the file never imported.
+# The loader in src/utils/data_loader.py is equivalent (standardize -> pad to 16
+# -> row-normalize) and additionally guards against zero-norm rows.
 
 def run_wine_experiment():
+    os.makedirs('results', exist_ok=True)
     X, y, n_qubits = load_and_preprocess_wine()
     
     # Split

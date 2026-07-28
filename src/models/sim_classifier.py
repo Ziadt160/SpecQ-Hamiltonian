@@ -8,7 +8,7 @@ from src.utils.seeds import set_seed
 set_seed()
 
 class SIMClassifier(BaseEstimator, ClassifierMixin):
-    """
+    r"""
     Simplified Hamiltonian (SIM) Classifier.
     
     This model implements a quadratic decision boundary by mapping classical input vectors

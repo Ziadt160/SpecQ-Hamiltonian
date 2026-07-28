@@ -12,10 +12,10 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from exact_sim_classifier import ExactSIMClassifier
-from spectral_pauli_generator import generate_spectral_pauli_strings
-from pauli_utils import generate_pauli_strings
-from experiment_ecoli_exact import load_ecoli_n4
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.utils.pauli_utils import generate_pauli_strings
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
 
 from src.utils.seeds import set_seed
 set_seed()
@@ -35,7 +35,7 @@ def train_model(model, X_train, y_train, epochs=200, lr=0.01):
 
 def run_small_data_experiment(n_seeds=5):
     print("Loading E. Coli (N=4)...")
-    X, y = load_ecoli_n4()
+    X_genes, y = load_ecoli_raw()
     
     # Data fractions
     fractions = [0.1, 0.2, 0.3, 0.5, 0.75, 1.0]
@@ -54,9 +54,11 @@ def run_small_data_experiment(n_seeds=5):
     
     for seed in range(n_seeds):
         print(f"--- Seed {seed+1}/{n_seeds} ---")
-        X_train_pool, X_test, y_train_pool, y_test = train_test_split(
-            X, y, test_size=0.3, random_state=42+seed
+        Xtr_raw, Xte_raw, y_train_pool, y_test = train_test_split(
+            X_genes, y, test_size=0.3, random_state=42+seed
         )
+        # chi2 selection fit on the training split only (no test-label leakage)
+        X_train_pool, X_test, _ = select_topk_chi2(Xtr_raw, Xte_raw, y_train_pool, n_qubits=4)
         
         # Fixed Test Tensor
         X_test_t = torch.tensor(X_test, dtype=torch.float64)
@@ -120,7 +122,7 @@ def run_small_data_experiment(n_seeds=5):
     plt.title('Small Data Stress Test: Spectral vs Full')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('../results/small_data_stress.png')
+    plt.savefig('results/small_data_stress.png')
     print("Saved plot to results/small_data_stress.png")
 
 if __name__ == "__main__":

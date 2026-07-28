@@ -1,9 +1,11 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.feature_selection import SelectKBest, chi2
 from ..utils.pauli_utils import get_pauli_tensor
+from ..utils.data_loader import ECOLI_CSV, REPO_ROOT
 from ..utils.data_loader import load_ecoli_reduced as load_ecoli_data
 
 def get_selected_genes():
@@ -11,18 +13,19 @@ def get_selected_genes():
     Re-runs the feature selection logic to get the exact names of the 16 selected genes.
     """
     print("Loading Data to retrieve Gene Names...")
-    try:
-        df = pd.read_csv(r'd:\Evoth Labs\SIM-Flipped Models\data\EColi_Merged_df.csv')
-    except:
-        df = pd.read_csv('data/EColi_Merged_df.csv')
-        
+    # Resolved relative to the package, so this works from any working directory
+    # (the previous hard-coded d:\Evoth Labs\... path only worked on one machine).
+    df = pd.read_csv(ECOLI_CSV)
+
     df = df.dropna(subset=['CTZ'])
     y = df['CTZ'].apply(lambda x: 1 if x == 'R' else 0).values
-    
+
     # Feature columns
     cols = list(df.columns)
-    try: start_idx = cols.index('CIP') + 1
-    except: start_idx = 15
+    try:
+        start_idx = cols.index('CIP') + 1
+    except ValueError:
+        start_idx = 15
     genes = df.columns[start_idx:]
     X_genes = df.iloc[:, start_idx:].values
     
@@ -44,11 +47,9 @@ def analyze_geometry():
     # We load from ranking, but we can also just use the constant list for consistency with last step
     # Let's load from CSV to get the SCORES (weights)
     print("Loading Pauli Importance Scores...")
-    try:
-        df_rank = pd.read_csv(r'd:\Evoth Labs\SIM-Flipped Models\results\pauli_importance_ranking.csv')
-    except:
-        df_rank = pd.read_csv('results/pauli_importance_ranking.csv')
-        
+    df_rank = pd.read_csv(os.path.join(REPO_ROOT, 'results', 'pauli_importance_ranking.csv'))
+
+
     # Take top 32
     top_32 = df_rank.head(32)
     

@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.metrics import accuracy_score
-from analysis_canonical_patterns import load_20newsgroups_projected
+from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
 from sklearn.model_selection import train_test_split
 
 from src.utils.seeds import set_seed
@@ -25,7 +25,7 @@ def run_qda_comparison():
     print(f"QDA Test Acc: {test_acc:.4f}")
     
     # Save
-    with open('../results/qda_results.txt', 'w') as f:
+    with open('results/qda_results.txt', 'w') as f:
         f.write(f"QDA (reg=0.1) Comparison:\n")
         f.write(f"Test Accuracy: {test_acc:.4f}\n")
 
