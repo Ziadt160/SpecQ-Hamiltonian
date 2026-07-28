@@ -1,0 +1,26 @@
+=== FWHT Spectral Analysis & Overfitting Report ===
+
+--- 1. Model Performance (Overfitting Analysis) ---
+Train Accuracy: 89.25%
+Test Accuracy:  91.00%
+Train F1-Score: 0.8911
+Test F1-Score:  0.9082
+Overfitting Gap (Acc): -1.75%
+Status: Low (Well Generalized)
+
+--- 2. Extracted Pauli Springs (Top Features) ---
+FWHT selected the top 5 Pauli strings natively driving the class variance:
+  1. ZIII : FWHT_Coefficient = +0.019255 | Magnitude = 0.019255
+  2. ZZZI : FWHT_Coefficient = -0.015195 | Magnitude = 0.015195
+  3. IZZX : FWHT_Coefficient = +0.012821 | Magnitude = 0.012821
+  4. IXYY : FWHT_Coefficient = +0.012641 | Magnitude = 0.012641
+  5. ZZZX : FWHT_Coefficient = -0.011126 | Magnitude = 0.011126
+
+--- 3. Statistical Distribution ---
+Average Interaction Order (K-locality): 2.80 / 4
+Operator Distribution: X=3, Y=2, Z=9, I=6
+
+--- 4. Data Deductions ---
+- High magnitude coefficients show precisely what quantum interaction is needed to distinguish fraud.
+- 'Z' operations dominate: The model leverages strong bias scaling/shifting rather than feature transitions.
+- High Interaction Order implies deep interactions between 3+ features are critical for detecting fraud patterns.

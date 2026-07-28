@@ -6,6 +6,9 @@ from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
 from src.utils.data_generator import generate_dataset
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def run_experiment():
     n_qubits = 4 # Keep small for simulation speed (dim=16)
     n_samples = 500

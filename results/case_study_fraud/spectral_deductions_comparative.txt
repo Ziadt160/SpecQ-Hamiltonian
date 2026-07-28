@@ -1,0 +1,33 @@
+=== FWHT Quantum-Inspired Model vs Classical Baselines ===
+
+--- 1. Comprehensive Model Comparison ---
+Model Name           | Train Acc  | Test Acc   | Train F1   | Test F1   
+---------------------------------------------------------------------------
+FWHT-SIM             |  94.25%    |  97.50%    |   0.9412   |   0.9751
+Logistic Regression  |  93.62%    |  98.00%    |   0.9340   |   0.9800
+Random Forest        |  95.25%    |  97.50%    |   0.9501   |   0.9744
+SVM (RBF)            |  97.75%    |  98.00%    |   0.9772   |   0.9798
+
+
+--- 2. FWHT Extracted Pauli Springs (Top Features) ---
+FWHT selected the top 15 Pauli strings natively driving the class variance:
+  1. ZIII : FWHT_Coefficient = +0.019255 | Magnitude = 0.019255
+  2. ZZZI : FWHT_Coefficient = -0.015195 | Magnitude = 0.015195
+  3. IZZX : FWHT_Coefficient = +0.012821 | Magnitude = 0.012821
+  4. IXYY : FWHT_Coefficient = +0.012641 | Magnitude = 0.012641
+  5. ZZZX : FWHT_Coefficient = -0.011126 | Magnitude = 0.011126
+  6. XXXX : FWHT_Coefficient = -0.009310 | Magnitude = 0.009310
+  7. IIXX : FWHT_Coefficient = -0.009096 | Magnitude = 0.009096
+  8. YYXX : FWHT_Coefficient = -0.009039 | Magnitude = 0.009039
+  9. IZYY : FWHT_Coefficient = -0.008813 | Magnitude = 0.008813
+  10. XIII : FWHT_Coefficient = -0.008718 | Magnitude = 0.008718
+  11. ZXII : FWHT_Coefficient = -0.008617 | Magnitude = 0.008617
+  12. IIIX : FWHT_Coefficient = -0.008525 | Magnitude = 0.008525
+  13. YIYX : FWHT_Coefficient = -0.008462 | Magnitude = 0.008462
+  14. IZIX : FWHT_Coefficient = +0.008458 | Magnitude = 0.008458
+  15. ZZIX : FWHT_Coefficient = -0.008222 | Magnitude = 0.008222
+
+--- 3. FWHT Statistical Distribution ---
+Average Interaction Order (K-locality): 2.60 / 4
+Operator Distribution: X=17, Y=8, Z=14, I=21
+

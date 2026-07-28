@@ -12,6 +12,9 @@ from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.experiment_ecoli_exact_ablation import load_ecoli_n4, calculate_pauli_importance
 from src.analyze_pauli_geometry import get_selected_genes
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def train_and_rank(seed, X, y):
     print(f"\n--- Run Seed {seed} ---")
     # Split

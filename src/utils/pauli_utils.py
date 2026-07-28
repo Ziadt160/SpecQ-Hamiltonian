@@ -2,6 +2,7 @@ import numpy as np
 from itertools import product
 from functools import reduce
 
+
 def get_pauli_matrix(label):
     """
     Returns the 2x2 Pauli matrix for the given label.

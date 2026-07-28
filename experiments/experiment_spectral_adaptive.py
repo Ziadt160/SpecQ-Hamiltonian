@@ -14,6 +14,9 @@ from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected as load_20news_orig
 from src.experiments.experiment_ecoli_exact import load_ecoli_n4_model_k
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def run_adaptive_experiment():
     os.makedirs('results', exist_ok=True)
     n_qubits = 6 # N=6

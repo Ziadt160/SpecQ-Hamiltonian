@@ -12,6 +12,9 @@ from ..utils.pauli_utils import generate_pauli_strings
 from ..models.exact_sim_classifier import ExactSIMClassifier
 from ..utils.data_loader import load_20newsgroups_projected, download_20newsgroups_manual
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def download_20newsgroups_manual():
     """
     Manually downloads the 20 Newsgroups dataset to scikit_learn_data to avoid 403 Forbidden.

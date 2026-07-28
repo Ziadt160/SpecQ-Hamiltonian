@@ -10,6 +10,9 @@ from src.models.sim_classifier import SIMClassifier
 from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 import os
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def run_lasso_comparison():
     print("Loading 20 Newsgroups (N=4)...")
     from sklearn.model_selection import train_test_split

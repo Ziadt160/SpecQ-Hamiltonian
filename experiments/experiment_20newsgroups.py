@@ -21,6 +21,9 @@ from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
 from src.models.exact_sim_classifier import ExactSIMClassifier
 
+from src.utils.seeds import set_seed
+set_seed()
+
 def train_exact_sim(X_train, y_train, X_test, y_test, n_qubits=4, epochs=100):
     print("\n--- Training Exact SIM (PyTorch + PennyLane) ---")
     print(f"N={n_qubits}, Pauli Strings: {4**n_qubits}")

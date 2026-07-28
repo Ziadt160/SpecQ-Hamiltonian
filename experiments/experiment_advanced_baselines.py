@@ -10,6 +10,9 @@ from spectral_pauli_generator import generate_spectral_pauli_strings
 from analysis_canonical_patterns import load_20newsgroups_projected
 from exact_sim_classifier import ExactSIMClassifier
 
+from src.utils.seeds import set_seed
+set_seed()
+
 # Mock the NoisySIMClassifier behavior but without noise for clean baseline comparison
 class BaselineSIMClassifier(ExactSIMClassifier):
     def __init__(self, n_qubits, pauli_strings):

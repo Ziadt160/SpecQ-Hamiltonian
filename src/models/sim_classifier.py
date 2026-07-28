@@ -2,7 +2,10 @@ import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-from .pauli_utils import get_pauli_tensor
+from ..utils.pauli_utils import get_pauli_tensor
+
+from src.utils.seeds import set_seed
+set_seed()
 
 class SIMClassifier(BaseEstimator, ClassifierMixin):
     """

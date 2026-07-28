@@ -10,6 +10,9 @@ from src.utils.data_loader import load_ecoli_reduced as load_ecoli_n4
 from src.utils.pauli_utils import generate_pauli_strings
 from src.models.exact_sim_classifier import ExactSIMClassifier
 
+from src.utils.seeds import set_seed
+set_seed()
+
 # --- Data Loading (Imported from data_loader) ---
 
 # --- Training Helper ---
