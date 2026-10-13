@@ -1,38 +1,30 @@
+import os
 import time
-import numpy as np
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 import torch.nn as nn
-import pennylane as qml
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import roc_auc_score, f1_score
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from sklearn.metrics import f1_score, roc_auc_score
 
-from src.models.spectral_sim_classifier import SpectralExactSIMClassifier
-from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.utils.data_utils import load_fraud_data
-from src.models.vqc_classifier import NoisyVQC
 from src.models.noisy_qsvm import NoisyQSVM
-
+from src.models.spectral_sim_classifier import SpectralExactSIMClassifier
+from src.models.vqc_classifier import NoisyVQC
+from src.utils.data_utils import load_fraud_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_noise_study():
     print("Starting Noise Resilience Study (Quantum)...")
-    os.makedirs('results/case_study_fraud', exist_ok=True)
     
-    # Use unified loader
-    X_norm, y = load_fraud_data(n_samples=500, n_qubits=4)
-    
-    X_train, X_test, y_train, y_test = train_test_split(X_norm, y, test_size=0.3, random_state=42)
+    # Use unified loader (PCA/scaler fit on the training split only)
+    X_train, X_test, y_train, y_test = load_fraud_split(
+        n_samples=500, n_qubits=4, test_size=0.3, random_state=42)
     X_te_t = torch.tensor(X_test, dtype=torch.float64)
     
     noise_levels = [0.0, 0.05, 0.1, 0.15, 0.2]
-    csv_path = 'results/case_study_fraud/noise_results_comprehensive.csv'
+    csv_path = results_path('case_study_fraud/noise_results_comprehensive.csv')
     
     # Initialize results container and load existing results to RESUME
     results = {k: [] for k in ['p', 'Model', 'Train_AUC', 'Train_F1', 'Test_AUC', 'Test_F1', 'Train_Time']}
@@ -182,7 +174,7 @@ def run_noise_study():
         axes[i].grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('results/case_study_fraud/noise_overfitting_analysis.png')
+    plt.savefig(results_path('case_study_fraud/noise_overfitting_analysis.png'))
     
     # 2. Global Test AUC comparison
     plt.figure(figsize=(10, 6))
@@ -195,9 +187,10 @@ def run_noise_study():
     plt.title('Comprehensive Noise Resilience comparison (Test Set)')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/case_study_fraud/noise_test_auc_comparison.png')
+    plt.savefig(results_path('case_study_fraud/noise_test_auc_comparison.png'))
     
     print("Noise study analysis completed and plots saved.")
 
 if __name__ == '__main__':
+    set_seed()
     run_noise_study()

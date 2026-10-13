@@ -1,17 +1,15 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.utils.data_loader import load_ecoli_split
-from src.utils.pauli_utils import generate_pauli_strings
-from src.models.exact_sim_classifier import ExactSIMClassifier
 
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_ecoli_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
 
 # --- Data Loading (Imported from data_loader) ---
 
@@ -91,12 +89,12 @@ def evaluate_subset(model, X_test, y_test, active_indices):
         if isinstance(quantum_expectations, (list, tuple)):
             quantum_expectations = torch.stack(quantum_expectations)
             
-        combined_weights = model.w * quantum_expectations
-        
+        combined_weights = model.w * quantum_expectations  # (1, K)
+
         # KEY STEP: Mask out non-active indices
         # We achieve this by multiplying inactive terms by 0
         mask = torch.zeros_like(combined_weights)
-        mask[active_indices] = 1.0
+        mask[..., active_indices] = 1.0  # index the string axis, not the class axis
         
         masked_weights = combined_weights * mask
         
@@ -110,7 +108,7 @@ def evaluate_subset(model, X_test, y_test, active_indices):
     return acc
 
 # --- Main Execution ---
-def run_abliation_study():
+def run_ablation_study():
     # 1. Load Data
     # chi2 selection is fit on the training split only (no test-label leakage)
     X_train, X_test, y_train, y_test = load_ecoli_split(n_qubits=4, test_size=0.3, random_state=42)
@@ -119,10 +117,8 @@ def run_abliation_study():
     model = train_model(X_train, y_train)
     
     # 3. Calculate Importance
-    # We use Test set for importance to see what actually drives decisions for unseen data
-    # (Or Train set? Using Test set gives 'global feature importance for generalization')
-    # Let's use X_train for determining importance to avoid data leakage, 
-    # then evaluate ablation on X_test.
+    # Importance is computed on X_train so the ranking never sees test data;
+    # the ablation below is then evaluated on X_test.
     importance_scores = calculate_pauli_importance(model, X_train)
     
     # 4. Rank Strings
@@ -141,7 +137,7 @@ def run_abliation_study():
         if i < 10:
             print(f"{i+1}. {p_str}: {score:.6f}")
             
-    pd.DataFrame(rank_data).to_csv('results/pauli_importance_ranking.csv', index=False)
+    pd.DataFrame(rank_data).to_csv(results_path('pauli_importance_ranking.csv'), index=False)
     
     # 5. Ablation Loop
     print("\n--- Running Ablation Sweep ---")
@@ -156,7 +152,7 @@ def run_abliation_study():
         
     # 6. Plotting
     results_df = pd.DataFrame(results)
-    results_df.to_csv('results/ablation_results.csv', index=False)
+    results_df.to_csv(results_path('ablation_results.csv'), index=False)
     
     plt.figure(figsize=(10, 6))
     plt.plot(results_df['k'], results_df['accuracy'], marker='o', linewidth=2)
@@ -169,8 +165,9 @@ def run_abliation_study():
     plt.axhline(y=results_df['accuracy'].max(), color='green', linestyle='--', alpha=0.3, label='Max Acc')
     plt.legend()
     plt.tight_layout()
-    plt.savefig('results/ablation_curve.png')
-    print("\nStudy Complete. Results saved to 'results/'")
+    plt.savefig(results_path('ablation_curve.png'))
+    print("\nStudy Complete. Results saved to results/")
 
 if __name__ == "__main__":
-    run_abliation_study()
+    set_seed()
+    run_ablation_study()

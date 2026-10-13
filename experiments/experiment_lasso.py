@@ -1,17 +1,14 @@
 import numpy as np
-import torch
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
-from src.models.sim_classifier import SIMClassifier
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string, get_pauli_tensor
-import os
+from sklearn.preprocessing import StandardScaler
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.utils.data_loader import load_20newsgroups_projected
+from src.utils.paths import results_path
+from src.utils.pauli_utils import get_pauli_tensor
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_lasso_comparison():
     print("Loading 20 Newsgroups (N=4)...")
@@ -64,9 +61,7 @@ def run_lasso_comparison():
     print("Computing Pauli feature expansion (this may take a moment)...")
     # Use the same list as spectral to keep indices aligned
     all_pauli_strings = full_pauli_strings
-    # Keep track of spectral ranking
-    spectral_ranking = {p: i for i, p in enumerate(all_pauli_strings)}
-    
+
     X_train_pauli = transform_to_pauli_features(X_train, all_pauli_strings)
     X_test_pauli = transform_to_pauli_features(X_test, all_pauli_strings)
     
@@ -76,8 +71,8 @@ def run_lasso_comparison():
     
     # 2. Train Lasso (L1)
     print("Training Lasso (L1 Logistic Regression)...")
-    # C=1.0 is default inverse regularization strength. Smaller C = stronger regularization (fewer features).
-    # We want to find a C that selects roughly ~50 features to match our Spectral comparison.
+    # Smaller C = stronger regularization (fewer features). C is fixed at 0.5, not
+    # tuned; the number of selected features is whatever that C yields.
     lasso = LogisticRegression(penalty='l1', solver='liblinear', C=0.5, random_state=42)
     lasso.fit(X_train_pauli, y_train)
     
@@ -105,18 +100,29 @@ def run_lasso_comparison():
     selected_ranks = np.sort(nonzero_indices)
     overlap_top_k = len([i for i in nonzero_indices if i < n_selected])
     overlap_pct = (overlap_top_k / n_selected) * 100
-    
+
+    # Chance level. Lasso can only pick non-constant columns (dead strings are
+    # identically zero, and the identity is |x|^2 = 1 after row normalisation),
+    # so the fair baseline is a random subset of the same size drawn from those.
+    selectable = np.where(scaler.var_ > 1e-12)[0]
+    chance_overlap_pct = 100 * np.mean(selectable < n_selected)
+    chance_mean_rank = np.mean(selectable)
+
     print(f"Lasso chose {n_selected} features.")
     print(f"Of these, {overlap_top_k} were also in the Spectral Top-{n_selected}.")
-    print(f"Overlap: {overlap_pct:.2f}%")
-    
+    print(f"Overlap: {overlap_pct:.2f}%  (chance: {chance_overlap_pct:.2f}% for a random "
+          f"{n_selected} of the {len(selectable)} non-constant features)")
+
     # Save results
-    with open('results/lasso_comparison.txt', 'w') as f:
-        f.write(f"Lasso C=0.5 Results:\n")
+    with open(results_path('lasso_comparison.txt'), 'w') as f:
+        f.write("Lasso C=0.5 Results:\n")
         f.write(f"Selected Features: {n_selected}\n")
-        f.write(f"Accuracy: {test_acc:.4f}\n")
+        f.write(f"Test accuracy: {test_acc:.4f}\n")
         f.write(f"Overlap with Spectral Top-{n_selected}: {overlap_pct:.2f}%\n")
         f.write(f"Average Rank of Lasso selections: {np.mean(selected_ranks):.1f} (Lower is better/closer to spectral)\n")
+        f.write(f"Chance level (random {n_selected} of the {len(selectable)} non-constant "
+                f"features): overlap {chance_overlap_pct:.2f}%, average rank {chance_mean_rank:.1f}\n")
 
 if __name__ == "__main__":
+    set_seed()
     run_lasso_comparison()

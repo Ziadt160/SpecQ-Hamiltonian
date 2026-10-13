@@ -1,28 +1,14 @@
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
-import sys
-
-# Add project root to path to allow importing from src
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from sklearn.datasets import fetch_20newsgroups
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.utils.data_loader import load_20newsgroups_n4 as load_and_preprocess_20newsgroups_n4, download_20newsgroups_manual
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
-from src.models.sim_classifier import SIMClassifier
-from src.models.exact_sim_classifier import ExactSIMClassifier
 
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_20newsgroups_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def train_exact_sim(X_train, y_train, X_test, y_test, n_qubits=4, epochs=100):
     print("\n--- Training Exact SIM (PyTorch + PennyLane) ---")
@@ -32,7 +18,7 @@ def train_exact_sim(X_train, y_train, X_test, y_test, n_qubits=4, epochs=100):
     X_tr = torch.tensor(X_train, dtype=torch.float64)
     y_tr = torch.tensor(y_train, dtype=torch.float64)
     X_te = torch.tensor(X_test, dtype=torch.float64)
-    # y_te is used for sklearn metrics, keep as numpy
+    # y_test stays numpy for the sklearn metrics
     
     # Use lightning.qubit if available for speed, else default
     # Note: ExactSIMClassifier defaults to 'default.qubit'
@@ -66,12 +52,9 @@ def train_exact_sim(X_train, y_train, X_test, y_test, n_qubits=4, epochs=100):
     return acc, losses
 
 def run_experiment():
-    # Ensure results directory exists
-    os.makedirs('results', exist_ok=True)
-    
-    X, y, n_qubits = load_and_preprocess_20newsgroups_n4()
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    n_qubits = 4
+    # TF-IDF, PCA and scaling are fit on the training split only
+    X_train, X_test, y_train, y_test = load_20newsgroups_split(n_qubits, test_size=0.3, random_state=42)
     print(f"Train size: {X_train.shape[0]}, Test size: {X_test.shape[0]}")
     
     # 2. Exact SIM Only
@@ -86,15 +69,16 @@ def run_experiment():
     plt.ylabel('BCELoss')
     plt.legend()
     plt.grid(True)
-    output_path = 'results/20newsgroups_exact_n4_only_convergence.png'
+    output_path = results_path('20newsgroups_exact_n4_only_convergence.png')
     plt.savefig(output_path)
     print(f"Plot saved to {output_path}")
     
     # Save Results Text
-    with open('results/20newsgroups_exact_n4_only_results.txt', 'w') as f:
+    with open(results_path('20newsgroups_exact_n4_only_results.txt'), 'w') as f:
         f.write("20 Newsgroups Binary Classification (alt.atheism vs soc.religion.christian)\n")
         f.write(f"Dimensions: {2**n_qubits} (N={n_qubits})\n")
         f.write(f"Exact SIM Accuracy: {acc_exact:.4f}\n")
 
 if __name__ == "__main__":
+    set_seed()
     run_experiment()

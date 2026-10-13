@@ -1,25 +1,20 @@
-import sys
-import os
-print("Starting script execution...", flush=True)
-# Hack to resolve mixed imports (some use src., some use local)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.append(os.path.dirname(__file__))
+import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.utils.pauli_utils import generate_pauli_strings
-from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
-import random
+from sklearn.model_selection import train_test_split
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def train_and_evaluate(model, X_train, y_train, X_test, y_test, epochs=200):
     opt = optim.Adam(model.parameters(), lr=0.01)
@@ -116,11 +111,11 @@ def run_overfitting_gap_experiment(n_seeds=5):
     plt.plot(k_values, mean_gap_rand, 's-', label='Random Basis Gap', color='red')
     plt.xlabel('Basis Size (k)')
     plt.ylabel('Generalization Gap (Train Acc - Test Acc)')
-    plt.title('Overfitting Analysis: Gap widens for Random models as K increases')
+    plt.title('Overfitting Analysis: Generalization Gap vs Basis Size')
     plt.legend()
     plt.xscale('log', base=2)
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/overfitting_gap.png')
+    plt.savefig(results_path('overfitting_gap.png'))
     print("Saved plot to results/overfitting_gap.png")
     
     # Detailed Plot (Train vs Test)
@@ -150,8 +145,10 @@ def run_overfitting_gap_experiment(n_seeds=5):
     plt.grid(True)
     
     plt.tight_layout()
-    plt.savefig('results/overfitting_detailed.png')
+    plt.savefig(results_path('overfitting_detailed.png'))
     print("Saved detailed plot to results/overfitting_detailed.png")
 
 if __name__ == "__main__":
+    print("Starting script execution...", flush=True)
+    set_seed()
     run_overfitting_gap_experiment()

@@ -1,22 +1,16 @@
+import matplotlib.pyplot as plt
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
-import sys
-import urllib.request
-
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 
-from ..utils.pauli_utils import generate_pauli_strings
-from ..models.exact_sim_classifier import ExactSIMClassifier
-from ..utils.data_loader import load_20newsgroups_projected, download_20newsgroups_manual
-
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
+from ..models.exact_sim_classifier import ExactSIMClassifier
+from ..utils.data_loader import load_20newsgroups_projected
+
 # Note: this module previously redefined download_20newsgroups_manual and
 # load_20newsgroups_projected here, shadowing the imports above. Both duplicates
 # referenced sklearn names this file never imported (fetch_20newsgroups,
@@ -68,7 +62,7 @@ def train_and_analyze(n_qubits, ax):
     
     # --- Extract Effectiveness ---
     with torch.no_grad():
-        w_vals = model.w.detach() # (K,)
+        w_vals = model.w.detach()[0] # (K,) -- w is (num_classes, K), binary here
         expectations = model.qnode(model.circuit_weights)
         if isinstance(expectations, (list, tuple)):
             expectations = torch.stack(expectations)
@@ -102,7 +96,6 @@ def train_and_analyze(n_qubits, ax):
     return pattern_sums
 
 def run_analysis():
-    os.makedirs('results', exist_ok=True)
     
     ns = [3, 4, 5, 6]
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
@@ -112,8 +105,9 @@ def run_analysis():
         train_and_analyze(n, axes[i])
         
     plt.tight_layout()
-    plt.savefig('results/20newsgroups_canonical_patterns.png')
+    plt.savefig(results_path('20newsgroups_canonical_patterns.png'))
     print("\nAnalysis complete. Plot saved to results/20newsgroups_canonical_patterns.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_analysis()

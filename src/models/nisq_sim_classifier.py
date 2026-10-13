@@ -38,8 +38,7 @@ import torch
 import torch.nn as nn
 
 from ..utils.pauli_utils import generate_pauli_strings
-from .exact_sim_classifier import (
-    aggregate_sequence, pauli_observable, real_pauli_stack)
+from .exact_sim_classifier import aggregate_sequence, pauli_observable, real_pauli_stack
 
 
 def entangler_ranges(n_layers, n_qubits):

@@ -1,35 +1,25 @@
-import os
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.linear_model import LogisticRegression
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.svm import SVC
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.models.fwht_sim_classifier import FWHTExactSIMClassifier
-from src.utils.data_utils import load_fraud_data
-
+from src.utils.data_utils import load_fraud_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_spectral_analysis():
     print("Running Advanced FWHT Spectral Analysis and Classical Comparison on Credit Card Fraud Data...")
-    os.makedirs('results/case_study_fraud', exist_ok=True)
     
-    # Load data using shared utility (4 qubits = 16 features)
-    X, y = load_fraud_data(n_samples=1000,n_qubits=4, random_state=42)
+    # Load data using shared utility (4 qubits = 16 features), already row-normalized.
+    # Split into Train and Test sets to evaluate Overfitting; PCA/scaler fit on train only.
+    X_train, X_test, y_train, y_test = load_fraud_split(
+        n_samples=1000, n_qubits=4, test_size=0.2, random_state=42, stratify=True)
     
-    # Normalize features
-    X_norm = X / np.linalg.norm(X, axis=1, keepdims=True)
-    
-    # Split into Train and Test sets to evaluate Overfitting
-    X_train, X_test, y_train, y_test = train_test_split(X_norm, y, test_size=0.2, random_state=42, stratify=y)
-    
-    print(f"Dataset Size: {len(X)} | Train: {len(X_train)} | Test: {len(X_test)}")
+    print(f"Dataset Size: {len(X_train) + len(X_test)} | Train: {len(X_train)} | Test: {len(X_test)}")
     
     top_k_select = 15
     epochs = 1000
@@ -115,7 +105,7 @@ def run_spectral_analysis():
     y_count = sum(s.count('Y') for s in strings)
     z_count = sum(s.count('Z') for s in strings)
     
-    report_path = 'results/case_study_fraud/spectral_deductions_comparative.txt'
+    report_path = results_path('case_study_fraud/spectral_deductions_comparative.txt')
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write("=== FWHT Quantum-Inspired Model vs Classical Baselines ===\n\n")
         
@@ -125,9 +115,9 @@ def run_spectral_analysis():
         for model_name, metrics in results.items():
             f.write(f"{model_name:<20} | {metrics['Train Acc']*100:>6.2f}%    | {metrics['Test Acc']*100:>6.2f}%    | {metrics['Train F1']:>8.4f}   | {metrics['Test F1']:>8.4f}\n")
         
-        f.write("\n\n--- 2. FWHT Extracted Pauli Springs (Top Features) ---\n")
+        f.write("\n\n--- 2. FWHT Extracted Pauli Strings (Top Features) ---\n")
         f.write(f"FWHT selected the top {top_k_select} Pauli strings natively driving the class variance:\n")
-        for i, (s, c) in enumerate(zip(strings, coefs)):
+        for i, (s, c) in enumerate(zip(strings, coefs, strict=True)):
             f.write(f"  {i+1}. {s} : FWHT_Coefficient = {c:+.6f} | Magnitude = {np.abs(c):.6f}\n")
         
         f.write("\n--- 3. FWHT Statistical Distribution ---\n")
@@ -171,7 +161,7 @@ def run_spectral_analysis():
     autolabel(rects1)
     autolabel(rects2)
     fig.tight_layout()
-    plt.savefig('results/case_study_fraud/models_performance_comparison.png', dpi=300)
+    plt.savefig(results_path('case_study_fraud/models_performance_comparison.png'), dpi=300)
     print("Plot saved to results/case_study_fraud/models_performance_comparison.png")
     
     # Plot 2: Spectral Profile
@@ -186,13 +176,14 @@ def run_spectral_analysis():
     plt.title('FWHT Pauli Spectral Coefficients (Blue = Pos, Red = Neg)', fontsize=14)
     plt.grid(axis='y', linestyle='--', alpha=0.5)
     
-    for bar, val in zip(bars, coefs):
+    for bar, val in zip(bars, coefs, strict=True):
         plt.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
                  f'{val:.3f}', ha='center', va='bottom', fontsize=9, rotation=90)
 
     plt.tight_layout()
-    plt.savefig('results/case_study_fraud/spectral_importance_profile.png', dpi=300)
+    plt.savefig(results_path('case_study_fraud/spectral_importance_profile.png'), dpi=300)
     print("Plot saved to results/case_study_fraud/spectral_importance_profile.png")
 
 if __name__ == '__main__':
+    set_seed()
     run_spectral_analysis()

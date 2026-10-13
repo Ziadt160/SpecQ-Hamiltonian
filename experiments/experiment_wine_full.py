@@ -1,14 +1,14 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import os
 from sklearn.model_selection import train_test_split
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
-from src.models.sim_classifier import SIMClassifier
-from experiments.experiment_wine import load_and_preprocess_wine
 
+from src.models.sim_classifier import SIMClassifier
+from src.utils.data_loader import load_wine_normalized as load_and_preprocess_wine
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def categorize_string_structure(s):
     """
@@ -65,7 +65,7 @@ def run_full_experiment():
     print("\n--- Top 15 Most Important Pauli Terms ---")
     print(df_feats.head(15))
     
-    df_feats.to_csv('results/wine_full_feature_importance.csv', index=False)
+    df_feats.to_csv(results_path('wine_full_feature_importance.csv'), index=False)
     
     # 3. Ablation by Order (Weight)
     print("\n--- Ablation by Interaction Order ---")
@@ -90,7 +90,7 @@ def run_full_experiment():
         })
         
     df_res = pd.DataFrame(results)
-    df_res.to_csv('results/wine_full_order_ablation.csv', index=False)
+    df_res.to_csv(results_path('wine_full_order_ablation.csv'), index=False)
     
     plot_full_results(df_feats, df_res)
 
@@ -117,8 +117,9 @@ def plot_full_results(df_feats, df_res):
     plt.xticks(rotation=45)
     
     plt.tight_layout()
-    plt.savefig('results/wine_full_analysis.png')
+    plt.savefig(results_path('wine_full_analysis.png'))
     print("\nPlot saved to results/wine_full_analysis.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_full_experiment()

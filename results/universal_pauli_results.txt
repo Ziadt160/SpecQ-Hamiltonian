@@ -1,5 +1,5 @@
 Universal Pauli Set Experiment (Top 32 E. coli Strings)
 ====================================================
-EColi: 0.9432
+EColi: 0.9449
 Wine: 0.9444
-MNIST: 0.9963
+Digits: 0.9981

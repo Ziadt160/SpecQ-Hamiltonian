@@ -1,5 +1,5 @@
 """
-The one noise experiment that the w_j absorption argument cannot explain away.
+Does a finite shot budget favour a smaller (spectral) Pauli basis?
 
 Depolarizing noise rescales each Pauli expectation multiplicatively,
 e_j -> lambda_j e_j. Because w_j is a free parameter, w_j' = w_j / lambda_j
@@ -7,7 +7,7 @@ recovers the identical function, so the achievable loss is provably unchanged --
 any "robustness to depolarizing noise" result is a property of the
 parametrization, not evidence about hardware.
 
-Finite sampling is different. Estimating <P_j> from a finite number of shots
+The hypothesis: finite sampling is different. Estimating <P_j> from a finite number of shots
 gives a *stochastic* error, not a fixed rescale, and no choice of w_j cancels a
 random variable. Shots are also the resource that actually costs money on
 hardware, which makes this the honest NISQ experiment.
@@ -22,11 +22,18 @@ The prediction, stated before running: a random draw of k strings contains only
 budget estimating numbers that get multiplied by zero. Spectral selection spends
 all of S on observables that matter, and should reach a given accuracy at
 roughly half the shot cost.
+
+Outcome: every arm saturates at the smallest budget. In this setup each e_j is
+estimated once and multiplies a whole feature column, so the shot error is a
+fixed per-column rescale, and fit_and_score's StandardScaler divides it out
+exactly (up to sign, which the L2-penalised fit absorbs). Only an estimate of
+exactly 0 changes the fit. The comparison between arms therefore reflects
+basis quality, not shot efficiency; see experiment_penalised_pruning.py for a
+variant without the post-multiplication standardisation.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import pennylane as qml
 import torch
 from sklearn.linear_model import LogisticRegression
@@ -35,10 +42,16 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string)
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.models.exact_sim_classifier import pauli_observable, real_pauli_stack
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings
 
 K_VALUES = [16, 32, 64]
@@ -93,7 +106,6 @@ DATASETS = [('EColi', 4, ecoli), ('20News', 4, newsgroups)]
 
 
 def run():
-    os.makedirs('results', exist_ok=True)
     rows = []
 
     for ds, n_qubits, loader in DATASETS:
@@ -142,22 +154,24 @@ def run():
                 print(f"  seed {seed} k={k} done", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/shot_budget.csv', index=False)
+    df.to_csv(results_path('shot_budget.csv'), index=False)
 
-    lines = ["Shot-budget experiment: finite sampling is not absorbable by w_j",
+    lines = ["Shot-budget experiment: finite-shot estimates of <P_j>, measured once",
              "=" * 78,
              f"Seeds: {len(SEEDS)}  |  k: {K_VALUES}  |  budgets: {SHOT_BUDGETS}",
              "",
              "Total budget S is split evenly over the k selected observables.",
              "A dead string (x^T P x == 0 identically) consumes S/k shots and",
              "contributes nothing, so random draws waste roughly half of S.",
+             "Each e_hat_j is one fixed per-column factor; feature standardisation",
+             "divides it out exactly, so only an estimate of exactly 0 changes F1.",
              "",
-             f"  {'dataset':<9}{'k':>4}{'budget':>10}{'arm':<14}"
+             f"  {'dataset':<9}{'k':>4}{'budget':>10}  {'arm':<14}"
              f"{'dead':>6}{'wasted':>9}{'est err':>10}{'F1':>9}"]
 
     for (ds, k, budget, arm), g in df.groupby(['dataset', 'k', 'budget', 'arm']):
         b = 'analytic' if np.isinf(budget) else f"{int(budget):,}"
-        lines.append(f"  {ds:<9}{int(k):>4}{b:>10}{arm:<14}"
+        lines.append(f"  {ds:<9}{int(k):>4}{b:>10}  {arm:<14}"
                      f"{g['dead_in_basis'].mean():>6.1f}"
                      f"{g['wasted_shots'].mean():>9.0f}"
                      f"{g['mean_abs_est_error'].mean():>10.4f}{g['f1'].mean():>9.4f}")
@@ -176,7 +190,7 @@ def run():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/shot_budget.txt', 'w') as f:
+    with open(results_path('shot_budget.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -198,7 +212,7 @@ def run():
     ax.grid(axis='y', alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/shot_budget.png', dpi=150)
+    plt.savefig(results_path('shot_budget.png'), dpi=150)
     print("\nSaved results/shot_budget.{csv,txt,png}")
 
 

@@ -4,32 +4,61 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sim-flipped-models"
-version = "0.1.0"
-description = "SpecQ-Hamiltonian: Spectral Interaction Selection in Flipped Quantum Subspace-Informed Models"
+version = "0.2.0"
+description = "Spectral Pauli pruning for flipped quantum Hamiltonian classifiers"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Evoth Labs" }]
-
-# Every entry below is imported somewhere in src/ or experiments/.
-#   scipy       -> src/generators/qmi_pauli_generator.py
-#   seaborn     -> src/analysis/analyze_pauli_geometry.py, experiments/experiment_stability_validation.py
-#   hydra-core  -> src/utils/seeds.py, experiments/experiment_mnist.py, test_hydra.py
-# scipy and seaborn were previously required but undeclared; tqdm was declared but
-# is imported nowhere, and has been dropped.
-dependencies = [
-    "numpy",
-    "scipy",
-    "pandas",
-    "matplotlib",
-    "seaborn",
-    "scikit-learn",
-    "torch>=2.0",
-    "pennylane>=0.35",
-    "hydra-core==1.3.2",
-    "omegaconf",
+authors = [{ name = "Ziad Tarek Mohammed" }]
+keywords = [
+    "quantum machine learning",
+    "flipped models",
+    "hamiltonian classifier",
+    "pauli decomposition",
+    "feature selection",
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Every entry below is imported somewhere in src/ or experiments/.
+# Tested with Python 3.10, numpy 2.2, scikit-learn 1.7, torch 2.9, pennylane 0.42.
+# The PennyLane ceiling guards the noise-model and device-shots APIs, which are
+# being reworked upstream.
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "seaborn>=0.12",
+    "scikit-learn>=1.3",
+    "torch>=2.0",
+    "pennylane>=0.38,<0.43",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "ruff>=0.6"]
+
+[project.urls]
+Repository = "https://github.com/Ziadt160/SpecQ-Hamiltonian"
+"Parent work (arXiv:2504.10542)" = "https://arxiv.org/abs/2504.10542"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src", "src.*", "experiments", "experiments.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+# Pyflakes plus syntax errors and bare excepts: catches real defects without
+# imposing a style rewrite on the experiment scripts.
+select = ["F", "E9", "E722", "B006", "B023"]

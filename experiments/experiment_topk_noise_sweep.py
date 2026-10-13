@@ -1,30 +1,23 @@
+import os
 import time
-import numpy as np
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
-import torch.nn as nn
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, f1_score
-import os
-import sys
-
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from sklearn.metrics import f1_score, roc_auc_score
 
 from src.models.spectral_sim_classifier import SpectralExactSIMClassifier
-from src.utils.data_utils import load_fraud_data
-
+from src.utils.data_utils import load_fraud_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_topk_noise_sweep():
     print("Starting Top-K Noise Resilience Sweep (Spectral SIM)...")
-    os.makedirs('results/case_study_fraud', exist_ok=True)
     
-    # Use unified loader
-    X_norm, y = load_fraud_data(n_samples=500, n_qubits=4)
-    X_train, X_test, y_train, y_test = train_test_split(X_norm, y, test_size=0.3, random_state=42)
+    # Use unified loader (PCA/scaler fit on the training split only)
+    X_train, X_test, y_train, y_test = load_fraud_split(
+        n_samples=500, n_qubits=4, test_size=0.3, random_state=42)
     X_te_t = torch.tensor(X_test, dtype=torch.float64)
     X_tr_t = torch.tensor(X_train, dtype=torch.float64)
 
@@ -32,7 +25,7 @@ def run_topk_noise_sweep():
     # top_k sequence based on user input 4 8 6 12 14 18...
     top_k_values = [4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32]
     
-    csv_path = 'results/case_study_fraud/topk_noise_results.csv'
+    csv_path = results_path('case_study_fraud/topk_noise_results.csv')
     
     # Initialize results container 
     results = {k: [] for k in ['top_k', 'p', 'Train_AUC', 'Train_F1', 'Test_AUC', 'Test_F1', 'Train_Time']}
@@ -122,7 +115,7 @@ def run_topk_noise_sweep():
     plt.title('Impact of Model Complexity (Top-K) on Noise Resilience')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/case_study_fraud/topk_noise_resilience.png')
+    plt.savefig(results_path('case_study_fraud/topk_noise_resilience.png'))
     
     plt.figure(figsize=(10, 6))
     for p in sorted(df_results['p'].unique()):
@@ -134,9 +127,10 @@ def run_topk_noise_sweep():
     plt.title('Impact of Model Complexity (Top-K) on Noise Resilience (F1)')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/case_study_fraud/topk_noise_resilience_f1.png')
+    plt.savefig(results_path('case_study_fraud/topk_noise_resilience_f1.png'))
     
     print("Sweep complete. Results and plots saved to results/case_study_fraud/.")
 
 if __name__ == '__main__':
+    set_seed()
     run_topk_noise_sweep()

@@ -2,9 +2,9 @@
 
 *Ziad Tarek Mohammed — Evoth Labs*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![builds on arXiv:2504.10542](https://img.shields.io/badge/builds%20on-arXiv%3A2504.10542-B31B1B.svg)](https://arxiv.org/abs/2504.10542)
+[![tests](https://github.com/Ziadt160/SpecQ-Hamiltonian/actions/workflows/tests.yml/badge.svg)](https://github.com/Ziadt160/SpecQ-Hamiltonian/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 ---
 
@@ -15,15 +15,24 @@ the quantum state, achieving $O(\log d)$ qubit scaling and avoiding the data-loa
 bottleneck of variational quantum classifiers. The cost is a measurement basis that grows
 as $4^n$. The originating work (Tiblias et al., 2025) selects the measured subset **at
 random**. We ask whether that subset can be chosen deliberately, and find that it can: on
-a 2,080-string basis, **24 observables retain 95% of full-basis accuracy — an 86-fold
+a 2,080-string basis, **24 observables retain 95% of full-basis F1 — an 86-fold
 reduction in measurement cost**. We further show that for real-valued inputs
 **approximately half of any Pauli basis is identically zero** and therefore unmeasurable,
 that spectral ranking accounts for 52% of its advantage over random selection
 independently of that effect, and that the generalisation gap opens at roughly 2% of the
 training-set size. Finally, we report a negative result: the variational quantum state in
-this architecture contributes **no expressivity**, which we establish empirically across
-four experiments and then prove algebraically. We conclude that the value of flipped
+this architecture contributes **no expressivity**, which we establish empirically through
+circuit ablations and then prove algebraically. We conclude that the value of flipped
 Hamiltonian classifiers lies in observable selection, not in the variational circuit.
+
+### Highlights
+
+| Finding | Evidence |
+| :--- | :--- |
+| 24 of 2,080 observables keep 95% of full-basis F1 (86.7× fewer measurements) | [§5.1](#51-the-measured-basis-compresses-by-one-to-two-orders-of-magnitude) |
+| ~50% of any Pauli basis is identically zero on real inputs | [§5.2](#52-half-of-any-random-basis-is-unmeasurable) |
+| Spectral ranking beats random-among-live strings in 17/20 configurations | [§5.3](#53-the-ranking-is-informative-beyond-that-filter) |
+| The variational state is a redundant reparametrisation | [§5.5](#55-negative-result-the-variational-state-contributes-no-expressivity) |
 
 ---
 
@@ -42,7 +51,7 @@ $$f_{\theta,\phi}(x) = \sigma\!\left(\frac{1}{2^n}\sum_{j=1}^{p}
 (\tilde x^\top P_j \tilde x)\, w_j \,\langle\psi_\theta|P_j|\psi_\theta\rangle\right)$$
 
 with $\tilde x = \frac{1}{s}\sum_i x_i + b_\phi$. The choice of $\{P_j\}$ is left open;
-the paper states they "can be chosen at random."
+the parent paper selects them at random.
 
 This work asks three questions:
 
@@ -81,10 +90,12 @@ reaching that share of the total spectral mass. Selection is fit on the training
 only. Implemented in
 [`spectral_pauli_generator.py`](src/generators/spectral_pauli_generator.py).
 
-**Complexity.** The projection over all $4^n$ strings is a single vectorised contraction
-at $O(4^n \cdot 2^{2n})$, replacing a loop of $4^n$ matrix products at
-$O(4^n \cdot 2^{3n})$ — bit-identical values, 5.8× faster measured at $n{=}4$, widening as
-$2^n$. This is not an eigendecomposition, and no $O(2^{3n})$ route is available.
+**Complexity.** The dense projection over all $4^n$ strings is a single vectorised
+contraction at $O(4^n \cdot 2^{2n})$, replacing a loop of $4^n$ matrix products at
+$O(4^n \cdot 2^{3n})$ — bit-identical values, 5.8× faster measured at $n{=}4$. For larger
+$n$, [`pauli_decompose.py`](src/utils/pauli_decompose.py) computes the same coefficients
+with a fast Walsh–Hadamard transform in $O(4^n \cdot n)$ (Georges et al., 2025); the test
+suite checks that the two back-ends agree string by string.
 
 ### 3.2 Structurally dead observables
 
@@ -98,6 +109,9 @@ $$N_{\text{dead}}(n) = \frac{4^n - 2^n}{2} \;\longrightarrow\; \tfrac{1}{2}\,4^n
 
 All three architectures are implemented. HAM (Eq. 2–3) and PEFF (§3.2) evaluate the full
 Hamiltonian expectation from the state vector; SIM (Eq. 9) uses the truncated Pauli sum.
+A noisy SIM with gate depolarisation, $T_1/T_2$ relaxation and readout error is provided
+for hardware-realistic studies; with all noise switched off it reproduces the noiseless
+model exactly.
 
 ---
 
@@ -106,13 +120,16 @@ Hamiltonian expectation from the state vector; SIM (Eq. 9) uses the truncated Pa
 | Dataset | Type | Raw size | Reduction | Qubits |
 | :--- | :--- | :--- | :--- | ---: |
 | E. Coli (CTZ resistance) | Bio-informatics | 1,935 × 17,198 genes | $\chi^2$ to $2^n$ | 4 – 6 |
-| 20 Newsgroups | NLP | ~1,900 docs, TF-IDF 5,000 | PCA to $2^n$ | 4 – 6 |
+| 20 Newsgroups | NLP | ~1,800 docs, TF-IDF 5,000 | PCA to $2^n$ | 4 – 6 |
 | Digits (8×8) | Vision | 1,797 × 64 | none | 6 |
 | Wine | Tabular | 178 × 13 | zero-pad to 16 | 4 |
 
-All preprocessing is fit on the training split only. E. Coli is **13.7% positive**, so
-accuracy is reported against a majority-class baseline of **0.8709**; F1 and balanced
-accuracy are the informative metrics. Results are averaged over 3–5 seeds.
+Everything that sees labels — $\chi^2$ gene selection, spectral ranking, model fitting —
+is fit on the training split only. The 20 Newsgroups TF-IDF/PCA projection used by the
+main experiments is fit on the whole corpus without labels (transductive);
+`load_20newsgroups_split` is the strictly inductive alternative. E. Coli is **13.7%
+positive**, so accuracy is reported against a majority-class baseline of **0.8709**; F1
+and balanced accuracy are the informative metrics. Results are averaged over 3–5 seeds.
 
 ---
 
@@ -128,7 +145,7 @@ Smallest basis retaining a share of full-basis test F1
 | 20 Newsgroups | 4 | 136 | 0.7893 | 8 | 17.0× |
 | 20 Newsgroups | 6 | 2,080 | 0.8252 | 64 | 32.5× |
 | E. Coli | 4 | 136 | 0.7011 | 12 | 11.3× |
-| E. Coli | 6 | 2,080 | 0.6883 | **24** | **86.7×** |
+| E. Coli | 6 | 2,080 | 0.6897 | **24** | **86.7×** |
 
 Redundancy grows with basis size: the larger the Pauli basis, the greater the fraction
 that can be discarded.
@@ -139,15 +156,15 @@ that can be discarded.
 | :--- | ---: | ---: | ---: | ---: |
 | Dead fraction | 46.9% | 49.2% | 49.8% | **49.95%** |
 
-Verified numerically: over 200 random real inputs the largest $|x^\top P x|$ across dead
-strings is $6\times10^{-15}$, against a live-string minimum of 17.1. At the reference
-paper's tuned configuration ($p{=}1000$, $n{=}10$), roughly **500 of 1,000 measured
-observables are identically zero**.
+Verified numerically: over 200 random real inputs at $n{=}5$ the largest $|x^\top P x|$
+across dead strings is $6\times10^{-15}$, against a live-string minimum of 17.1. At the
+reference paper's tuned configuration ($p{=}1000$, $n{=}10$), roughly **500 of 1,000
+measured observables are identically zero**.
 
 Spectral ranking assigns these $|c_P| \approx 10^{-18}$ and places every one below every
-live string — the first dead string appears at rank 136/256 ($n{=}4$) and 2080/4096
-($n{=}6$) — so any top-$k$ is 100% live at no additional cost.
-([`measurement_efficiency.txt`](results/measurement_efficiency.txt))
+live string — on both datasets all 136 ($n{=}4$) and all 2,080 ($n{=}6$) live strings
+rank ahead of the first dead one — so any top-$k$ is 100% live at no additional cost
+([`measurement_efficiency.txt`](results/measurement_efficiency.txt)).
 
 ### 5.3 The ranking is informative beyond that filter
 
@@ -165,9 +182,13 @@ against draws from **live strings only**
 The ranking wins **17 of 20** configurations, is worth **+0.30 F1 at $k{=}8$** on E. Coli
 $n{=}6$, and washes out as $k$ approaches the full basis, as it must.
 
-**Independent corroboration.** L1-regularised logistic regression, which has no knowledge
-of Pauli structure, selects 118 interactions; **88.98% fall within the spectral top-118**
-([`lasso_comparison.txt`](results/lasso_comparison.txt)).
+**A comparison that does not discriminate.** L1-regularised logistic regression, which
+has no knowledge of Pauli structure, selects 118 interactions at $n{=}4$, and 86.4% of
+them fall within the spectral top-118. A random 118 of the 135 non-constant strings
+overlaps by 86.7%, so at this basis size the agreement is at chance level and we do not
+count it as corroboration
+([`lasso_comparison.txt`](results/lasso_comparison.txt)). A meaningful version needs a
+basis large enough that L1 selects a small fraction of it.
 
 ### 5.4 Additional observables buy memorisation, not generalisation
 
@@ -177,13 +198,13 @@ E. Coli $n{=}6$, 1,354 training samples. Each retained string is exactly one par
 | ---: | ---: | ---: | ---: | ---: |
 | 8 | 0.01 | 0.5489 | 0.5499 | −0.001 |
 | **24** | 0.02 | 0.6475 | **0.6553** | −0.008 |
-| 64 | 0.05 | 0.7329 | 0.6506 | +0.082 |
-| 128 | 0.09 | 0.8398 | 0.6593 | +0.181 |
-| 2,080 | 1.54 | 0.9402 | 0.6883 | +0.252 |
+| 64 | 0.05 | 0.7334 | 0.6506 | +0.083 |
+| 128 | 0.09 | 0.8403 | 0.6593 | +0.181 |
+| 2,080 | 1.54 | 0.9402 | 0.6897 | +0.251 |
 
 The gap opens at $k \approx 16$–$32$, about **2% of the training set** — far earlier than
 the conventional $k \approx N$ heuristic. Growing from 24 to 2,080 strings costs 87× the
-measurement budget and yields **+0.033 test F1** while train F1 rises 0.65 → 0.94. Below
+measurement budget and yields **+0.034 test F1** while train F1 rises 0.65 → 0.94. Below
 $k \approx 12$ the gap is negative, indicating genuine underfitting: there is a floor.
 
 ### 5.5 Negative result: the variational state contributes no expressivity
@@ -194,9 +215,9 @@ identical to logistic regression on the quadratic features $x^\top P_j x$.
 
 | Evidence | Result |
 | :--- | :--- |
-| Circuit trained / frozen at random init / removed (5 seeds) | 0.9363 / **0.9373** / 0.9346 — frozen is nominally best |
+| Circuit trained / frozen at random init / removed (5 seeds) | 0.9394 / 0.9377 / 0.9387 accuracy — all three within one standard deviation (±0.003–0.012) ([`circuit_ablation.txt`](results/circuit_ablation.txt)) |
 | HAM vs PEFF vs SIM vs circuit-free SIM | circuit-free matches or wins ([`variant_comparison.txt`](results/variant_comparison.txt)) |
-| Shot budget 1k → analytic | all arms saturate at the smallest budget; 20% error per $\langle P\rangle$ costs nothing |
+| Shot budget 1k → analytic | all arms saturate at the smallest budget — as the next row predicts, since an estimation error in $\langle P_j\rangle$ is one constant per feature ([`shot_budget.txt`](results/shot_budget.txt)) |
 | **Algebraic** | with standardised features, damping $\langle P\rangle$ by $10^{-6}$ or inverting every sign leaves the fitted model **identical to $10^{-12}$** |
 
 The final row is a proof rather than an observation: $e_j$ is constant across samples, so
@@ -208,20 +229,22 @@ Neither work tested removing $\langle P \rangle$; that is the direction reported
 
 ### 5.6 Model variants
 
-Head-to-head, 3 seeds, spectral top-32 basis for SIM:
+Head-to-head, 3 seeds, spectral top-32 basis for SIM
+([`variant_comparison.txt`](results/variant_comparison.txt)):
 
 | Variant | E. Coli acc / F1 | 20 News acc / F1 | Params ($n{=}4$) |
 | :--- | :--- | :--- | ---: |
 | HAM | 0.8663 / 0.000 | 0.5671 / 0.724 | 292 — $O(4^n)$ |
-| PEFF | 0.9312 / 0.687 | 0.8089 / 0.835 | **54** — $O(d)$ |
-| SIM | **0.9306 / 0.720** | 0.8188 / 0.840 | 84 — $O(p)$ |
-| SIM, circuit removed | 0.9283 / 0.706 | **0.8231 / 0.845** | 84 |
+| PEFF | 0.9312 / 0.687 | 0.8089 / 0.835 | 54 — $O(d)$ |
+| SIM | 0.9317 / 0.727 | 0.8207 / 0.840 | 84 — $O(p)$ |
+| SIM, circuit removed | **0.9329 / 0.734** | **0.8231 / 0.844** | **48** |
 
-PEFF meets its design goal: within one point of SIM at a third of the parameters. HAM
-collapsed to a single class (balanced accuracy exactly 0.5000) under shared
-hyperparameters; the reference work tunes each variant separately with 8–32 ansatz layers
-against the 3 used here, so this is a fair-comparison artifact rather than a verdict on
-HAM.
+Removing the circuit leaves the best model on both datasets with the fewest parameters,
+as §5.5 predicts. PEFF comes within about one accuracy point of SIM with a third fewer
+parameters, at some cost in F1 on E. Coli. HAM collapsed to a single class (balanced
+accuracy exactly 0.5000) under shared hyperparameters; the reference work tunes each
+variant separately with 8–32 ansatz layers against the 3 used here, so this is a
+fair-comparison artifact rather than a verdict on HAM.
 
 ---
 
@@ -235,11 +258,18 @@ magnitude. The variational circuit, by contrast, is shown to be inert.
 **On noise.** Depolarizing noise damps $e_j \to \lambda_j e_j$ with $\lambda_j > 0$;
 since $w_j$ is free, $w_j' = w_j/\lambda_j$ recovers the identical function. Under global
 depolarizing, $\mathrm{sign}(\text{logit})$ — and hence accuracy — is **exactly**
-invariant. Three experiments (shot budget, pruning under noise, penalised pruning) found
-no measurable effect at rates up to $p{=}0.30$. We therefore make **no noise-robustness
-claim**: an apparently flat degradation curve here reflects the parametrisation, not
-hardware resilience. Pruning reduces measurement cost linearly; it does not make the
-circuit quieter.
+invariant. Two of our noise experiments (shot budget, pruning under noise) standardise
+the features *after* multiplying by the estimated $\langle P_j\rangle$, which divides any
+per-string damping or shot error out exactly; their flat curves restate this algebra and
+are not independent evidence. The third
+([`penalised_pruning.txt`](results/penalised_pruning.txt)) fixes the feature scaling and
+penalises $w$, so compensating for noise has a cost. There, noise does bite: with a
+strong penalty ($C{=}0.01$) E. Coli F1 falls from 0.625 at $p{=}0$ to 0 at $p \ge 0.2$
+and 20 Newsgroups from 0.793 to 0.724 at $p{=}0.3$, while at $C \ge 0.1$ the loss is at
+most 0.06. Noise costs accuracy exactly to the extent that the weights are prevented from
+rescaling. We therefore make **no noise-robustness claim**: a flat degradation curve in
+this architecture reflects the parametrisation, not hardware resilience. Pruning reduces
+measurement cost linearly; it does not make the circuit quieter.
 
 **On the E. Coli benchmark.** Reducing to $2^4{=}16$ genes leaves 61% of samples as
 all-zero vectors, which any model of the form $f(x^\top P x)$ must map to one constant
@@ -259,30 +289,45 @@ map does not add discriminative power
 - The covariance and second-moment definitions of $\Delta$ select substantially different
   bases (21–25% overlap at $k{=}16$) but are **statistically indistinguishable on
   accuracy**; the default follows the paper on principle, not on measured performance.
-- `experiment_nisq_sweep.py` emits only a figure, with no machine-readable output.
 - The overfitting comparison between spectral and random orderings is evaluated at the
   full basis, where both contain the same strings; that comparison is degenerate.
-
-Further known issues are recorded in [CHANGELOG.md](CHANGELOG.md).
+- Every result cited here was regenerated with the current code (v0.2.0). A few
+  long-running auxiliary experiments were not; they, and known issues in individual
+  scripts, are listed in [CHANGELOG.md](CHANGELOG.md#known-limitations).
 
 ---
 
 ## 8. Reproducibility
 
+### Installation
+
 ```bash
 git clone https://github.com/Ziadt160/SpecQ-Hamiltonian.git
+cd SpecQ-Hamiltonian
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
-Install the package, not merely its requirements — experiments import `src.*`:
+Install the package, not merely its requirements — experiments import `src.*`. Python
+3.10+ is required; the code is tested with PyTorch 2.9 and PennyLane 0.42. A GPU is not
+needed: every experiment runs on CPU.
+
+### Data
+
+| Dataset | How to obtain |
+| :--- | :--- |
+| E. Coli | Included: [`data/EColi_Merged_df.csv`](data/EColi_Merged_df.csv), gene presence/absence and resistance phenotypes for 1,936 isolates from Moradigaravand et al. (2018). |
+| 20 Newsgroups | Downloaded automatically by scikit-learn on first use (~14 MB, cached). |
+| Digits, Wine | Bundled with scikit-learn. |
+| Credit-card fraud (case study only) | Download `creditcard_2023.csv` from [Kaggle](https://www.kaggle.com/datasets/nelgiriyewithana/credit-card-fraud-detection-dataset-2023) into `data/`. It is not committed (325 MB). |
+
+### Running experiments
+
+Run from the repository root; all output is written to `results/`, whatever the working
+directory.
 
 ```bash
-pip install -e .
-```
-
-Run from the repository root; all output is written to `results/`.
-
-```bash
-python experiments/experiment_pruning_limits.py
+python -m experiments.experiment_pruning_limits
 ```
 
 | Experiment | Question | Section |
@@ -290,28 +335,69 @@ python experiments/experiment_pruning_limits.py
 | [`pruning_limits`](experiments/experiment_pruning_limits.py) | How far can the basis be cut? Where does overfitting begin? | 5.1, 5.4 |
 | [`measurement_efficiency`](experiments/experiment_measurement_efficiency.py) | How much of a random basis is structurally unmeasurable? | 5.2 |
 | [`spectral_vs_random_live`](experiments/experiment_spectral_vs_random_live.py) | Is the ranking informative, or only a dead-string filter? | 5.3 |
+| [`lasso`](experiments/experiment_lasso.py) | Does an L1 model with no Pauli knowledge pick the same strings? | 5.3 |
 | [`circuit_ablation`](experiments/experiment_circuit_ablation.py) | Does the variational state add expressivity? | 5.5 |
 | [`variant_comparison`](experiments/experiment_variant_comparison.py) | HAM vs PEFF vs SIM under identical conditions | 5.6 |
 | [`shot_budget`](experiments/experiment_shot_budget.py) | Does finite sampling favour a smaller basis? | 6 |
-| [`delta_definition`](experiments/experiment_delta_definition.py) | Covariance vs second moment | 7 |
 | [`ecoli_feature_count`](experiments/experiment_ecoli_feature_count.py) | Is the $2^n$ gene budget an artifact? | 6 |
+| [`delta_definition`](experiments/experiment_delta_definition.py) | Covariance vs second moment | 7 |
+
+Every other script — dataset benchmarks, noise studies, baselines and the credit-card
+fraud case study — is catalogued in [docs/experiments.md](docs/experiments.md).
+
+### Tests
+
+```bash
+pytest
+```
+
+The suite (~30 s on CPU) checks the claims the results rest on rather than only the
+plumbing: dead strings vanish exactly, spectral and FWHT selection agree, the noisy model
+reduces to the exact one with noise off, HAM/PEFF parameter counts, that each synthetic
+regime is solved by its own Pauli class, and that selection never sees test labels.
 
 ### Repository layout
 
 | Path | Contents |
 | :--- | :--- |
-| [`src/models/`](src/models) | SIM (Eq. 9), HAM and PEFF, NISQ variant, classical baseline |
-| [`src/generators/`](src/generators) | Spectral moment selection, Cauchy-Schwarz QMI |
-| [`src/utils/`](src/utils) | Pauli algebra, leak-free data loaders |
+| [`src/models/`](src/models) | SIM (Eq. 9), HAM and PEFF, noisy SIM, self-selecting SIM, VQC / QSVM baselines |
+| [`src/generators/`](src/generators) | Spectral moment selection, Cauchy–Schwarz QMI selection |
+| [`src/utils/`](src/utils) | Pauli algebra, FWHT decomposition, leak-free data loaders, seeding, paths |
 | [`src/analysis/`](src/analysis) | Interaction geometry, canonical patterns, stress tests |
-| [`experiments/`](experiments) | Benchmark and ablation suites |
+| [`experiments/`](experiments) | Benchmark and ablation scripts |
 | [`results/`](results) | Numerical output and figures |
+| [`tests/`](tests) | Unit and property tests |
+| [`docs/`](docs) | Methodology notes and the experiment catalogue |
 
 > [!IMPORTANT]
 > `load_ecoli_split` and `load_20newsgroups_split` fit all preprocessing on the training
 > split and should be used for any reported metric. `load_ecoli_reduced` fits $\chi^2$
 > selection on the full dataset including test labels; it is retained only for
 > non-evaluative geometry analysis and warns at call time.
+
+---
+
+## Citation
+
+If you use this code, please cite it together with the work it builds on
+([CITATION.cff](CITATION.cff) has the machine-readable form):
+
+```bibtex
+@software{mohammed_spectral_pauli_pruning,
+  author = {Mohammed, Ziad Tarek},
+  title  = {Spectral Pauli Pruning for Flipped Quantum Hamiltonian Classifiers},
+  url    = {https://github.com/Ziadt160/SpecQ-Hamiltonian},
+  year   = {2026}
+}
+
+@article{tiblias2025hamiltonian,
+  author  = {Tiblias, Federico and Schroeder, Anna and Zhang, Yue and
+             Gachechiladze, Mariami and Gurevych, Iryna},
+  title   = {An Efficient Quantum Classifier Based on Hamiltonian Representations},
+  journal = {arXiv preprint arXiv:2504.10542},
+  year    = {2025}
+}
+```
 
 ---
 
@@ -323,11 +409,15 @@ python experiments/experiment_pruning_limits.py
 2. S. Jerbi, C. Gyurik, S. C. Marshall, R. Molteni, V. Dunjko. *Shadows of quantum machine
    learning.* Nature Communications 15:5676, 2024.
 3. M. Cerezo et al. *Variational Quantum Algorithms.* Nature Reviews Physics 3, 2021.
-4. Z. T. Mohammed. *Spectral Pauli Pruning: Efficient Feature Selection for Flipped
-   Quantum Hamiltonian Classifiers.* [Manuscript](pdf/Spectral_Pauli_Generator.pdf).
+4. D. Moradigaravand, M. Palm, A. Farewell, V. Mustonen, J. Warringer, L. Parts.
+   *Prediction of antibiotic resistance in Escherichia coli from large-scale pan-genome
+   data.* PLoS Computational Biology 14(12):e1006258, 2018.
+5. T. N. Georges, B. K. Berntson, C. Sünderhauf, A. V. Ivanov. *Pauli Decomposition via
+   the Fast Walsh-Hadamard Transform.* New Journal of Physics, 2025.
+   [arXiv:2408.06206](https://arxiv.org/abs/2408.06206).
 
 ---
 
 ## License
 
-MIT.
+[MIT](LICENSE).

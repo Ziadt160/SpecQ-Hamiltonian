@@ -2,14 +2,16 @@
 Golden Pauli Strings Extraction via Direct FWHT Pauli Decomposition
 Implementation based on Georges et al., arXiv:2408.06206v4.
 
-This module provides a scalable, vectorized implementation of scalar Pauli decomposition 
-utilizing Fast Walsh-Hadamard Transforms (FWHT) achieving O(N^2 log N) complexity 
-overall with an O(1) memory overhead mapping.
+This module provides a scalable, vectorized implementation of scalar Pauli decomposition
+utilizing Fast Walsh-Hadamard Transforms (FWHT): O(N^2 log N) time for an N x N matrix
+(N = 2^n), against O(N^4) for projecting onto each of the N^2 Pauli strings densely.
+Memory is O(N^2), one working copy of the matrix.
 
 Both NumPy (CPU) and PyTorch (GPU accelerated) backends are fully supported.
 """
 
 import numpy as np
+
 try:
     import torch
 except ImportError:
@@ -189,7 +191,7 @@ def _extract_golden_torch(Delta_hat: 'torch.Tensor', n: int, eta: float = None, 
         
     return results
 
-def ExtractGoldenStrings(Delta_hat, n: int, eta: float = None, k: int = None):
+def extract_golden_strings(Delta_hat, n: int, eta: float = None, k: int = None):
     """
     Extracts the most significant Pauli strings using Fast Walsh-Hadamard Transform 
     based decomposition exactly achieving O(N^2 log N) limits.
@@ -212,3 +214,7 @@ def ExtractGoldenStrings(Delta_hat, n: int, eta: float = None, k: int = None):
         return _extract_golden_numpy(Delta_hat, n, eta, k)
     else:
         raise TypeError("Delta_hat must be a NumPy array or a PyTorch tensor.")
+
+
+# Original name, kept for backwards compatibility.
+ExtractGoldenStrings = extract_golden_strings

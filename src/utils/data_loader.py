@@ -1,20 +1,24 @@
 import os
 import urllib.request
 import warnings
+
 import numpy as np
 import pandas as pd
-from sklearn.datasets import fetch_20newsgroups, load_digits, load_wine
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.datasets import fetch_20newsgroups, get_data_home, load_digits, load_wine
 from sklearn.decomposition import PCA
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.feature_selection import SelectKBest, chi2
 
-from src.utils.seeds import set_seed
-set_seed()
-# Repo root, resolved relative to this file so the loaders work from any cwd.
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-ECOLI_CSV = os.path.join(REPO_ROOT, 'data', 'EColi_Merged_df.csv')
+from .paths import DATA_DIR, REPO_ROOT  # noqa: F401  (REPO_ROOT is re-exported)
+
+ECOLI_CSV = DATA_DIR / 'EColi_Merged_df.csv'
+# Columns 0-14 are isolate metadata (MLST, Isolate, Year) and the twelve
+# antibiotic phenotypes (CTZ ... CIP); gene presence/absence starts at column 15.
+ECOLI_FIRST_GENE_COLUMN = 15
+
+NEWSGROUPS_CATEGORIES = ['alt.atheism', 'soc.religion.christian']
 
 
 def row_normalize(X):
@@ -25,10 +29,14 @@ def row_normalize(X):
 
 
 def download_20newsgroups_manual():
-    """Manually downloads the 20 Newsgroups dataset."""
-    data_home = os.environ.get('SCIKIT_LEARN_DATA', os.path.join('~', 'scikit_learn_data'))
-    data_home = os.path.expanduser(data_home)
-    target_dir = os.path.join(data_home, "20news_home")
+    """
+    Fetches the 20 Newsgroups archive from the original upstream mirror.
+
+    Fallback only, for when scikit-learn's own download fails: the archive is
+    placed where `fetch_20newsgroups` looks for it, so scikit-learn picks it up
+    (it verifies the checksum) instead of downloading.
+    """
+    target_dir = os.path.join(get_data_home(), "20news_home")
     os.makedirs(target_dir, exist_ok=True)
 
     archive_path = os.path.join(target_dir, "20news-bydate.tar.gz")
@@ -55,12 +63,14 @@ def load_ecoli_raw():
         X_genes (np.ndarray): (n_samples, n_genes) raw gene features.
         y (np.ndarray): Binary CTZ resistance labels (1 = resistant).
     """
-    path = ECOLI_CSV
-    if not os.path.exists(path):
-        path = 'data/EColi_Merged_df.csv'
-    df = pd.read_csv(path).dropna(subset=['CTZ'])
+    if not ECOLI_CSV.exists():
+        raise FileNotFoundError(
+            f"E. Coli dataset not found at {ECOLI_CSV}. It is tracked in the "
+            "repository, so a complete clone includes it."
+        )
+    df = pd.read_csv(ECOLI_CSV, low_memory=False).dropna(subset=['CTZ'])
     y = df['CTZ'].apply(lambda x: 1 if x == 'R' else 0).values
-    X_genes = df.iloc[:, 15:].values  # Simplified index
+    X_genes = df.iloc[:, ECOLI_FIRST_GENE_COLUMN:].values
     return X_genes, y
 
 
@@ -133,11 +143,22 @@ def load_ecoli_reduced(n_qubits=4):
 # ---------------------------------------------------------------------------
 
 def _fetch_20newsgroups():
-    download_20newsgroups_manual()
-    categories = ['alt.atheism', 'soc.religion.christian']
-    return fetch_20newsgroups(
-        subset='all', categories=categories, remove=('headers', 'footers', 'quotes')
-    )
+    """
+    The binary alt.atheism vs soc.religion.christian task, headers/footers/quotes removed.
+
+    Previously this downloaded the 14 MB archive unconditionally before every
+    load: scikit-learn deletes the archive once it has built its cache, so the
+    "already downloaded" check never held and each call hit the network.
+    scikit-learn's cache is now used first and the upstream mirror only as a
+    fallback.
+    """
+    kwargs = dict(subset='all', categories=NEWSGROUPS_CATEGORIES,
+                  remove=('headers', 'footers', 'quotes'))
+    try:
+        return fetch_20newsgroups(**kwargs)
+    except OSError:  # includes URLError/HTTPError from an unreachable mirror
+        download_20newsgroups_manual()
+        return fetch_20newsgroups(**kwargs)
 
 
 def load_20newsgroups_projected(n_qubits):

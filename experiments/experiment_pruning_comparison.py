@@ -1,29 +1,23 @@
+import random
+
+import matplotlib.pyplot as plt
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
-import json
-import random
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.model_selection import train_test_split
 
-from sklearn.feature_selection import SelectKBest, chi2
-
+from src.generators.qmi_pauli_generator import generate_qmi_pauli_strings
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.utils.data_loader import (
     load_20newsgroups_n4 as load_and_preprocess_20newsgroups_n4,
-    load_ecoli_split,
 )
-from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.generators.qmi_pauli_generator import generate_qmi_pauli_strings
+from src.utils.data_loader import load_ecoli_split
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings
-
 from src.utils.seeds import set_seed
-set_seed()
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -45,7 +39,7 @@ def train_and_eval(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, ep
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.BCELoss()
     
-    for epoch in range(epochs):
+    for _ in range(epochs):
         optimizer.zero_grad()
         outputs = model(X_tr)
         loss = criterion(outputs, y_tr)
@@ -62,13 +56,12 @@ def train_and_eval(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, ep
         f1 = f1_score(y_test, preds_cls)
         try:
             auc = roc_auc_score(y_test, preds_prob)
-        except:
-            auc = 0.5
+        except ValueError:  # only one class present in y_test: AUC is undefined
+            auc = float('nan')
             
     return acc, f1, auc
 
 def run_ablation_study():
-    os.makedirs('results', exist_ok=True)
     results = []
     
     # Configuration
@@ -134,7 +127,7 @@ def run_ablation_study():
                 
     # Save Results
     df_res = pd.DataFrame(results)
-    df_res.to_csv('results/pruning_ablation_results.csv', index=False)
+    df_res.to_csv(results_path('pruning_ablation_results.csv'), index=False)
     print("\nResults saved to results/pruning_ablation_results.csv")
     
     # Plotting Accuracy vs k
@@ -151,8 +144,9 @@ def run_ablation_study():
         plt.ylabel('Test Accuracy')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'results/pruning_comparison_{ds_name}.png')
+        plt.savefig(results_path(f'pruning_comparison_{ds_name}.png'))
         print(f"Plot saved to results/pruning_comparison_{ds_name}.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_ablation_study()

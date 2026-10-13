@@ -1,25 +1,20 @@
-import sys
-import os
-print("Starting script execution...", flush=True)
-# Hack to resolve mixed imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.append(os.path.dirname(__file__))
+import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.models.nisq_sim_classifier import NISQSIMClassifier
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.utils.pauli_utils import generate_pauli_strings
-from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
-import random
+from sklearn.model_selection import train_test_split
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.nisq_sim_classifier import NISQSIMClassifier
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def train_and_evaluate(model, X_train, y_train, X_test, y_test, epochs=150):
     opt = optim.Adam(model.parameters(), lr=0.01)
@@ -80,7 +75,16 @@ def run_nisq_experiment(n_seeds=3):
     # Plot
     mean_spec = np.mean(acc_spec, axis=0)
     mean_rand = np.mean(acc_rand, axis=0)
-    
+
+    # Machine-readable copy of the plotted numbers (means), with per-seed values
+    seed_cols = [f'{m}_seed{s}' for m in ('spectral', 'random') for s in range(n_seeds)]
+    table = np.column_stack([k_values, mean_spec, np.std(acc_spec, axis=0),
+                             mean_rand, np.std(acc_rand, axis=0), acc_spec.T, acc_rand.T])
+    np.savetxt(results_path('nisq_robustness.csv'), table, delimiter=',', comments='',
+               header=','.join(['k', 'spectral_mean', 'spectral_std', 'random_mean', 'random_std'] + seed_cols),
+               fmt=['%d'] + ['%.6f'] * (table.shape[1] - 1))
+    print("Saved numbers to results/nisq_robustness.csv")
+
     plt.figure(figsize=(8, 6))
     plt.plot(k_values, mean_spec, 'o-', label='Spectral Pruned (NISQ)', color='green')
     plt.plot(k_values, mean_rand, 's-', label='Random Basis (NISQ)', color='red')
@@ -90,8 +94,9 @@ def run_nisq_experiment(n_seeds=3):
     plt.legend()
     plt.xscale('log', base=2)
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/nisq_robustness.png')
+    plt.savefig(results_path('nisq_robustness.png'))
     print("Saved plot to results/nisq_robustness.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_nisq_experiment()

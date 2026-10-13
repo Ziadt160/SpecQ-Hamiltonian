@@ -1,20 +1,14 @@
 import time
-import numpy as np
+
 import pandas as pd
 import torch
-import os
-import sys
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from src.models.spectral_sim_classifier import SpectralExactSIMClassifier
-from src.utils.data_utils import load_fraud_data
-
+from src.utils.data_utils import load_fraud_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_qpu_final_test(device_name='default.qubit', shots=1024, ibmq_token=None, backend=None):
     """
@@ -28,9 +22,9 @@ def run_qpu_final_test(device_name='default.qubit', shots=1024, ibmq_token=None,
     """
     print(f"Starting Final QPU Test on {device_name}...")
     
-    # 1. Load Data
-    X_norm, y = load_fraud_data(n_samples=100, n_qubits=4) # Smaller sample for QPU test
-    X_train, X_test, y_train, y_test = train_test_split(X_norm, y, test_size=0.3, random_state=42)
+    # 1. Load Data (PCA/scaler fit on the training split only)
+    X_train, X_test, y_train, y_test = load_fraud_split(
+        n_samples=100, n_qubits=4, test_size=0.3, random_state=42) # Smaller sample for QPU test
     
     # 2. Configure Device Kwargs
     dev_kwargs = {}
@@ -56,7 +50,7 @@ def run_qpu_final_test(device_name='default.qubit', shots=1024, ibmq_token=None,
         **dev_kwargs
     )
     
-    # 4. Train (The user mentioned this takes ~3s on IBM)
+    # 4. Train
     print("Training on QPU/Backend...")
     start_t = time.time()
     model.fit(X_train, y_train, epochs=10, lr=0.01) # Fewer epochs for speed
@@ -71,13 +65,12 @@ def run_qpu_final_test(device_name='default.qubit', shots=1024, ibmq_token=None,
         probs_test = model(torch.tensor(X_test, dtype=torch.float64)).numpy()
     auc_test = roc_auc_score(y_test, probs_test)
     
-    print(f"\nFinal QPU Test Results:")
+    print("\nFinal QPU Test Results:")
     print(f"Device: {device_name}")
     print(f"Test AUC: {auc_test:.4f}")
-    print(f"Total Time: {train_time:.2f}s")
+    print(f"Train Time: {train_time:.2f}s")
     
     # Save results
-    os.makedirs('results/case_study_fraud', exist_ok=True)
     res_df = pd.DataFrame([{
         'Device': device_name,
         'Backend': backend,
@@ -86,10 +79,11 @@ def run_qpu_final_test(device_name='default.qubit', shots=1024, ibmq_token=None,
         'Test_AUC': auc_test,
         'Train_Time': train_time
     }])
-    res_df.to_csv('results/case_study_fraud/qpu_test_results.csv', index=False)
+    res_df.to_csv(results_path('case_study_fraud/qpu_test_results.csv'), index=False)
     print("\nResults saved to results/case_study_fraud/qpu_test_results.csv")
 
 if __name__ == '__main__':
+    set_seed()
     # Default to local simulator for safety. 
     # User can modify this or pass arguments.
     import argparse

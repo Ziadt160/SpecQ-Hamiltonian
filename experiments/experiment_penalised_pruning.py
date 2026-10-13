@@ -26,10 +26,9 @@ expensive to keep, and the accuracy-optimal basis should shrink as p grows.
 This tests a claim about *how to choose the basis under a resource constraint*.
 It is not a claim that the model resists noise -- that one is dead either way.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import pennylane as qml
 import torch
 from sklearn.linear_model import LogisticRegression
@@ -37,10 +36,16 @@ from sklearn.metrics import balanced_accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string)
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.models.exact_sim_classifier import pauli_observable, real_pauli_stack
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 
 K_VALUES = [4, 8, 16, 32, 64, 128]
 NOISE_LEVELS = [0.0, 0.05, 0.10, 0.20, 0.30]
@@ -90,8 +95,13 @@ def newsgroups(n_qubits, seed):
 DATASETS = [('EColi', 4, ecoli), ('20News', 4, newsgroups)]
 
 
+def best_k(f1_by_k):
+    """Smallest k with the highest mean F1, or None when every k scores F1 = 0
+    (all ties -- idxmax would otherwise report the first k as 'optimal')."""
+    return int(f1_by_k.idxmax()) if f1_by_k.max() > 0 else None
+
+
 def run():
-    os.makedirs('results', exist_ok=True)
     rows = []
 
     for ds, n_qubits, loader in DATASETS:
@@ -136,7 +146,7 @@ def run():
             print(f"  seed {seed} done", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/penalised_pruning.csv', index=False)
+    df.to_csv(results_path('penalised_pruning.csv'), index=False)
 
     lines = ["Noise-aware basis size when w carries an L2 penalty",
              "=" * 78,
@@ -156,7 +166,8 @@ def run():
             for p in NOISE_LEVELS:
                 g = df[(df.dataset == ds) & (df.C == C) & (df.p == p)]
                 m = g.groupby('k')['f1'].mean()
-                cells.append(f"{int(m.idxmax())} ({m.max():.3f})")
+                bk = best_k(m)
+                cells.append(f"{'-' if bk is None else bk} ({m.max():.3f})")
             lines.append(f"    {C:>7}" + "".join(f"{c:>13}" for c in cells))
 
     lines += ["", "Fitted ||w|| at k=128 (compensation effort vs noise):",
@@ -169,7 +180,7 @@ def run():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/penalised_pruning.txt', 'w') as f:
+    with open(results_path('penalised_pruning.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -185,8 +196,9 @@ def run():
     ax = axes[1]
     for ds in df['dataset'].unique():
         for C in C_VALUES:
-            best = [df[(df.dataset==ds)&(df.C==C)&(df.p==p)].groupby('k')['f1'].mean().idxmax()
+            best = [best_k(df[(df.dataset==ds)&(df.C==C)&(df.p==p)].groupby('k')['f1'].mean())
                     for p in NOISE_LEVELS]
+            best = [np.nan if b is None else b for b in best]   # F1 = 0 at every k
             ax.plot(NOISE_LEVELS, best, 'o-', label=f'{ds} C={C}')
     ax.set_yscale('log', base=2)
     ax.set_xlabel('Depolarizing rate p'); ax.set_ylabel('Accuracy-optimal k')
@@ -194,7 +206,7 @@ def run():
     ax.legend(fontsize=8); ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/penalised_pruning.png', dpi=150)
+    plt.savefig(results_path('penalised_pruning.png'), dpi=150)
     print("\nSaved results/penalised_pruning.{csv,txt,png}")
 
 

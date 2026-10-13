@@ -4,6 +4,9 @@ Seeds: 3  k: [4, 8, 16, 32, 64, 128]  p: [0.0, 0.01, 0.05, 0.1, 0.2]
 
 Damping is exact: DepolarizingChannel(p) per qubit shrinks each
 non-identity Pauli factor by (1-4p/3); verified to 1.6e-13.
+Features are standardised after multiplying by e_hat, which divides
+out any non-zero per-column factor, so p and the budget can only act
+through estimates that are exactly 0.
 
 Best k (by F1) for each noise / budget combination:
 
@@ -21,7 +24,7 @@ Best k (by F1) for each noise / budget combination:
 
 Spectral vs random at the largest basis (k=128), F1:
   dataset      budget      p=0.0     p=0.01     p=0.05      p=0.1      p=0.2
-  EColi         1,000     -0.006     -0.006     -0.006     -0.006     -0.004
-  EColi      analytic     -0.007     -0.003     -0.001     -0.006     -0.006
+  EColi         1,000     -0.001     -0.006     -0.001     -0.006     -0.001
+  EColi      analytic     -0.001     -0.001     -0.003     -0.004     -0.004
   20News        1,000     -0.003     -0.003     -0.003     -0.003     -0.003
   20News     analytic     -0.003     -0.003     -0.003     -0.003     -0.003

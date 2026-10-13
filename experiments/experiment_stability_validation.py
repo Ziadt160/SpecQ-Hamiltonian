@@ -1,28 +1,31 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.model_selection import train_test_split
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string, get_pauli_tensor
-from src.models.sim_classifier import SIMClassifier
+
+from experiments.experiment_ecoli_exact_ablation import calculate_pauli_importance
+from src.analysis.analyze_pauli_geometry import get_gene_names
 from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
-from src.analysis.analyze_pauli_geometry import get_selected_genes
-from experiments.experiment_ecoli_exact_ablation import calculate_pauli_importance
-
+from src.utils.paths import results_path
+from src.utils.pauli_utils import get_pauli_tensor
 from src.utils.seeds import set_seed
-set_seed()
-def train_and_rank(seed, X_genes, y):
+
+
+def train_and_rank(seed, X_genes, y, gene_names):
     print(f"\n--- Run Seed {seed} ---")
     # Split, then fit chi2 selection on the training split only (no test-label leakage)
     Xtr_raw, Xte_raw, y_train, y_test = train_test_split(
         X_genes, y, test_size=0.3, random_state=seed
     )
-    X_train, X_test, _ = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=4)
-    
+    X_train, X_test, selector = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=4)
+    # The selected genes depend on the split, so each seed's features are labelled
+    # with that seed's own genes (feature j <-> seed_genes[j]).
+    seed_genes = [gene_names[i] for i in selector.get_support(indices=True)]
+
     # Train
     # Using slightly fewer epochs (150) for speed in validation loop, 
     # assuming convergence is fast enough for feature importance stability.
@@ -53,23 +56,23 @@ def train_and_rank(seed, X_genes, y):
     # Paper/Standard is usually Test or Full. Let's use X_train consistent with previous step.
     imp_scores = calculate_pauli_importance(model, X_train)
     
-    return model.pauli_strings, imp_scores
+    return model.pauli_strings, imp_scores, seed_genes
 
 def run_stability_check():
     # 0. Load Data & Genes
     X_genes, y = load_ecoli_raw()
-    gene_names = get_selected_genes()
+    gene_names = get_gene_names()  # all gene columns, in X_genes column order
     dim = 16
-    
+
     seeds = [0, 1, 2, 3, 4]
-    
+
     # Accumulators
     pair_counts = {} # (GeneA, GeneB) -> count
-    total_interaction_matrix = np.zeros((dim, dim))
-    
+    seed_matrices = [] # (seed_genes, seed_matrix) per seed
+
     for seed in seeds:
         # 1. Train & Rank
-        p_strings, scores = train_and_rank(seed, X_genes, y)
+        p_strings, scores, seed_genes = train_and_rank(seed, X_genes, y, gene_names)
         
         # 2. Get Top 32
         sorted_indices = np.argsort(scores)[::-1].copy()
@@ -85,8 +88,8 @@ def run_stability_check():
             P_real = np.real(P)
             seed_matrix += score * np.abs(P_real)
             
-        total_interaction_matrix += seed_matrix
-        
+        seed_matrices.append((seed_genes, seed_matrix))
+
         # 4. Count Pairs in Top 20 of this seed
         # Mask diagonal
         off_diag = seed_matrix.copy()
@@ -104,7 +107,7 @@ def run_stability_check():
             val = off_diag[i, j]
             if val < 0.05: break
             
-            pair = tuple(sorted((gene_names[i], gene_names[j])))
+            pair = tuple(sorted((seed_genes[i], seed_genes[j])))
             if pair in seen_in_seed: continue
             seen_in_seed.add(pair)
             
@@ -117,7 +120,7 @@ def run_stability_check():
     # --- Final Analysis ---
     
     # 1. Stability Report
-    print("\n--- Stability Validation Report (5 Folds) ---")
+    print(f"\n--- Stability Validation Report ({len(seeds)} Random Splits) ---")
     sorted_pairs = sorted(pair_counts.items(), key=lambda x: x[1], reverse=True)
     
     report_lines = []
@@ -130,19 +133,29 @@ def run_stability_check():
         report_lines.append(line)
         print(line)
         
-    with open('results/stability_report.txt', 'w') as f:
+    with open(results_path('stability_report.txt'), 'w') as f:
         f.write('\n'.join(report_lines))
         
     # 2. Consensus Heatmap
+    # Each split selects its own 16 genes, so average in gene space over the union
+    # of all selected genes rather than by matrix position. A gene a split did not
+    # select contributes 0 for that split.
+    union_genes = sorted({g for genes, _ in seed_matrices for g in genes}, key=gene_names.index)
+    pos = {g: i for i, g in enumerate(union_genes)}
+    total_interaction_matrix = np.zeros((len(union_genes), len(union_genes)))
+    for genes, seed_matrix in seed_matrices:
+        ix = [pos[g] for g in genes]
+        total_interaction_matrix[np.ix_(ix, ix)] += seed_matrix
     mean_matrix = total_interaction_matrix / len(seeds)
-    
+
     plt.figure(figsize=(12, 10))
-    sns.heatmap(mean_matrix, xticklabels=gene_names, yticklabels=gene_names, 
+    sns.heatmap(mean_matrix, xticklabels=union_genes, yticklabels=union_genes,
                 cmap='viridis', annot=False)
     plt.title('Consensus Gene Interaction Map\n(Averaged over 5 Random Splits)')
     plt.tight_layout()
-    plt.savefig('results/stability_heatmap.png')
-    print("\nSaved Consensus Heatmap to 'results/stability_heatmap.png'")
+    plt.savefig(results_path('stability_heatmap.png'))
+    print("\nSaved Consensus Heatmap to results/stability_heatmap.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_stability_check()

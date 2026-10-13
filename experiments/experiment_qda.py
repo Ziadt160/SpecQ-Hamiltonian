@@ -1,16 +1,15 @@
-import numpy as np
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.metrics import accuracy_score
-from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
-from sklearn.model_selection import train_test_split
 
+from src.utils.data_loader import load_20newsgroups_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_qda_comparison():
     print("Loading 20 Newsgroups (N=4)...")
-    X, y = load_20newsgroups_projected(n_qubits=4)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # TF-IDF, PCA and scaling are fit on the training split only
+    X_train, X_test, y_train, y_test = load_20newsgroups_split(n_qubits=4, test_size=0.3, random_state=42)
     
     # QDA
     print("Training QDA...")
@@ -25,9 +24,10 @@ def run_qda_comparison():
     print(f"QDA Test Acc: {test_acc:.4f}")
     
     # Save
-    with open('results/qda_results.txt', 'w') as f:
-        f.write(f"QDA (reg=0.1) Comparison:\n")
+    with open(results_path('qda_results.txt'), 'w') as f:
+        f.write("QDA (reg=0.1) Comparison:\n")
         f.write(f"Test Accuracy: {test_acc:.4f}\n")
 
 if __name__ == "__main__":
+    set_seed()
     run_qda_comparison()

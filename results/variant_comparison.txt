@@ -6,15 +6,15 @@ EColi:
   variant            accuracy    bal-acc       F1   params   train loss
   HAM          0.8663 +-0.0111     0.5000   0.0000      292       0.3584
   PEFF         0.9312 +-0.0062     0.7831   0.6874       54       0.3647
-  SIM          0.9306 +-0.0085     0.8209   0.7198       84       0.2183
-  SIM-noQ      0.9283 +-0.0078     0.8096   0.7063       84       0.2170
+  SIM          0.9317 +-0.0020     0.8273   0.7272       84       0.2170
+  SIM-noQ      0.9329 +-0.0096     0.8334   0.7340       48       0.2152
 
 20News:
   variant            accuracy    bal-acc       F1   params   train loss
   HAM          0.5671 +-0.0088     0.5000   0.7237      292       0.6741
   PEFF         0.8089 +-0.0165     0.8023   0.8350       54       0.4852
-  SIM          0.8188 +-0.0084     0.8155   0.8403       84       0.4043
-  SIM-noQ      0.8231 +-0.0070     0.8195   0.8446       84       0.3992
+  SIM          0.8207 +-0.0054     0.8194   0.8399       84       0.4072
+  SIM-noQ      0.8231 +-0.0065     0.8197   0.8444       48       0.3936
 
 Parameter scaling matches the paper's motivation for the progression:
   HAM  O(N^2) = O(4^n)   PEFF O(d) = O(2^n)   SIM O(p)

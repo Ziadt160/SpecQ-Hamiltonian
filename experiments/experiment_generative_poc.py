@@ -1,20 +1,14 @@
+import matplotlib.pyplot as plt
 import numpy as np
+import pennylane as qml
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import pennylane as qml
-from collections import defaultdict
-import matplotlib.pyplot as plt
-import sys
-import os
 
-# Ensure src is in the path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.generators.spectral_pauli_generator import generate_pauli_strings
-from src.utils.pauli_utils import get_pauli_tensor
-
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings, get_pauli_tensor
 from src.utils.seeds import set_seed
-set_seed()
+
 
 # ==========================================
 # 1. Vocabulary & Data Preparation
@@ -55,8 +49,11 @@ def prepare_dataset(text, vocab, context_size=3):
 def get_global_spectral_paulis(X_emb, n_qubits, top_k=50):
     """
     Generalized Spectral Method:
-    Instead of class difference, we use the global covariance of the embeddings
-    to find interactions (Pauli strings) that capture the most variance in the sequence context.
+    Instead of class difference, we use the global (uncentred) second-moment matrix
+    of the embeddings to find interactions (Pauli strings) that capture the most energy
+    in the sequence context.
+
+    Note: `n_qubits` is unused; the string length is set by the embedding dimension.
     
     X_emb: (N_samples, context_dim)
     """
@@ -124,6 +121,10 @@ class GenerativeSIM(nn.Module):
             """
             features: the selected Pauli coefficients mapped from the context.
             This circuit creates a superposition and applies rotations.
+
+            NOTE: `features` is not used by any gate below, so the output
+            distribution does not depend on the context (or on the selected
+            Pauli strings) -- the model can only learn a fixed distribution.
             """
             for i in range(n_qubits):
                 qml.Hadamard(wires=i)
@@ -193,7 +194,6 @@ def train():
 
     # 3. Model
     model = GenerativeSIM(vocab.vocab_size, context_size, embed_dim, vocab.n_qubits, top_paulis)
-    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.05)
     
     # 4. Train Loop
@@ -224,7 +224,7 @@ def train():
     plt.title("Generative Quantum Flipped Model Loss")
     plt.xlabel("Epoch")
     plt.ylabel("NLL Loss")
-    plt.savefig("results/generative_poc_loss.png")
+    plt.savefig(results_path("generative_poc_loss.png"))
     plt.close()
 
     # 5. Generation (Simulating "Shots")
@@ -255,7 +255,5 @@ def train():
     print(f"Generated text: {generated_text}")
 
 if __name__ == "__main__":
-    import os
-    if not os.path.exists("results"):
-        os.makedirs("results")
+    set_seed()
     train()

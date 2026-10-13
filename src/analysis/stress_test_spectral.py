@@ -1,20 +1,16 @@
-import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
-import os
-import sys
-
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-from ..utils.data_loader import load_20newsgroups_projected
-from ..models.exact_sim_classifier import ExactSIMClassifier
-from ..generators.spectral_pauli_generator import generate_spectral_pauli_strings
-
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
+from ..generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from ..models.exact_sim_classifier import ExactSIMClassifier
+from ..utils.data_loader import load_20newsgroups_split
+
 
 def train_model_k(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, k):
     print(f"\n--- Training Top-{k} (Terms: {len(pauli_strings)}) ---")
@@ -32,7 +28,7 @@ def train_model_k(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, k):
     criterion = nn.BCELoss()
     
     # 40 epochs for speed in sweep
-    for epoch in range(40):
+    for _ in range(40):
         optimizer.zero_grad()
         out = model(X_tr)
         loss = criterion(out, y_tr)
@@ -49,21 +45,16 @@ def train_model_k(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, k):
     return acc
 
 def run_stress_test():
-    os.makedirs('results', exist_ok=True)
     
     n_qubits = 6 # 64 dims, 4096 potential terms
     print(f"Loading Data for N={n_qubits}...")
-    X, y = load_20newsgroups_projected(n_qubits)
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    
+    # TF-IDF, PCA and scaling are fit on the training split only
+    X_train, X_test, y_train, y_test = load_20newsgroups_split(n_qubits, test_size=0.3, random_state=42)
+
     print("Generating Full Spectral Basis Ranking...")
     # Get enough to cover our max k
     max_k = 256
-    # Note: Generating ALL 4096 spectral scores might take a moment.
-    # Let's generate all to be safe? 4096 is fine.
-    # Actually generate_spectral_pauli_strings defaults to return all if top_k None
-    # But let's ask for max_k + buffer
+    # All 4096 strings are scored either way; top_k only truncates the ranking.
     spectral_strings, coefs = generate_spectral_pauli_strings(X_train, y_train, n_qubits, top_k=max_k)
     
     k_values = [2, 4, 8, 16, 32, 64, 128, 256]
@@ -86,13 +77,14 @@ def run_stress_test():
     plt.grid(True, which="both", ls="-", alpha=0.3)
     plt.xticks(k_values, [str(k) for k in k_values])
     
-    plt.savefig('results/spectral_stress_test.png')
+    plt.savefig(results_path('spectral_stress_test.png'))
     print("Plot saved to results/spectral_stress_test.png")
     
     # Save CSV
     import pandas as pd
     df = pd.DataFrame({'k': k_values, 'accuracy': accuracies})
-    df.to_csv('results/spectral_stress_test.csv', index=False)
+    df.to_csv(results_path('spectral_stress_test.csv'), index=False)
 
 if __name__ == "__main__":
+    set_seed()
     run_stress_test()

@@ -15,10 +15,9 @@ SIM additionally appears with the quantum branch removed (`SIM-noQ`), which
 experiment_circuit_ablation.py showed to be its equivalent hypothesis class.
 Including it here checks whether that conclusion survives against HAM and PEFF.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -29,7 +28,11 @@ from src.generators.spectral_pauli_generator import generate_spectral_pauli_stri
 from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.models.hamiltonian_variants import HAMClassifier, PEFFClassifier
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 
 SEEDS = [0, 1, 2]
 EPOCHS = 150
@@ -38,6 +41,12 @@ TOP_K = 32
 
 class NoQuantumSIM(ExactSIMClassifier):
     """SIM with <psi|P|psi> replaced by 1 -- the circuit removed entirely."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The circuit is never evaluated, so its weights get no gradient. Freeze
+        # them so they are not counted in n_params (training is unaffected).
+        self.circuit_weights.requires_grad_(False)
+
     def forward(self, x):
         feats = self.classical_features(x)
         logits = feats @ self.w.T
@@ -85,7 +94,6 @@ def train_eval(model, Xtr, ytr, Xte, yte, epochs=EPOCHS, lr=0.01):
 
 
 def run_variant_comparison():
-    os.makedirs('results', exist_ok=True)
     rows = []
 
     for ds_name, n_qubits, loader in DATASETS:
@@ -95,11 +103,12 @@ def run_variant_comparison():
             basis, _, _ = generate_spectral_pauli_strings(Xtr, ytr, n_qubits)
             basis = basis[:TOP_K]
 
+            # Loop variables are bound as defaults so each builder is self-contained.
             builders = {
-                'HAM':     lambda: HAMClassifier(n_qubits, n_layers=3),
-                'PEFF':    lambda: PEFFClassifier(n_qubits, n_layers=3),
-                'SIM':     lambda: ExactSIMClassifier(n_qubits, 3, pauli_strings=basis),
-                'SIM-noQ': lambda: NoQuantumSIM(n_qubits, 3, pauli_strings=basis),
+                'HAM':     lambda n=n_qubits: HAMClassifier(n, n_layers=3),
+                'PEFF':    lambda n=n_qubits: PEFFClassifier(n, n_layers=3),
+                'SIM':     lambda n=n_qubits, b=basis: ExactSIMClassifier(n, 3, pauli_strings=b),
+                'SIM-noQ': lambda n=n_qubits, b=basis: NoQuantumSIM(n, 3, pauli_strings=b),
             }
             for name, build in builders.items():
                 torch.manual_seed(seed)
@@ -112,7 +121,7 @@ def run_variant_comparison():
                       f"params={m['n_params']:<6} loss={m['train_loss']:.4f}", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/variant_comparison.csv', index=False)
+    df.to_csv(results_path('variant_comparison.csv'), index=False)
 
     order = ['HAM', 'PEFF', 'SIM', 'SIM-noQ']
     lines = ["HAM vs PEFF vs SIM (Tiblias et al. Sec. 3.1-3.3)",
@@ -121,7 +130,6 @@ def run_variant_comparison():
              ""]
     for ds in df['dataset'].unique():
         sub = df[df.dataset == ds]
-        maj = None
         lines += [f"{ds}:",
                   f"  {'variant':<9}{'accuracy':>18}{'bal-acc':>11}{'F1':>9}"
                   f"{'params':>9}{'train loss':>13}"]
@@ -143,11 +151,11 @@ def run_variant_comparison():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/variant_comparison.txt', 'w') as f:
+    with open(results_path('variant_comparison.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    for ax, metric in zip(axes, ['f1', 'accuracy']):
+    for ax, metric in zip(axes, ['f1', 'accuracy'], strict=True):
         width, xs = 0.35, np.arange(len(order))
         for i, ds in enumerate(df['dataset'].unique()):
             sub = df[df.dataset == ds]
@@ -161,7 +169,7 @@ def run_variant_comparison():
         ax.legend(); ax.grid(axis='y', alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/variant_comparison.png', dpi=150)
+    plt.savefig(results_path('variant_comparison.png'), dpi=150)
     print("\nSaved results/variant_comparison.{csv,txt,png}")
 
 

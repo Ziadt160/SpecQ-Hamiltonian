@@ -1,5 +1,6 @@
 import pennylane as qml
 
+
 def get_depolarizing_noise_model(p, wires=None):
     """
     Creates a PennyLane NoiseModel for depolarizing noise, compatible with latest versions (0.42+).
@@ -17,8 +18,8 @@ def get_depolarizing_noise_model(p, wires=None):
         
     # Standard: Apply depolarization after every gate on specified wires
     def noise_rule(op, **kwargs):
-        # Apply to all operations that aren't channels themselves to avoid infinite recursion
-        if isinstance(op, (qml.operation.Channel, qml.operation.Observable)):
+        # Never attach noise to a noise channel itself
+        if isinstance(op, qml.operation.Channel):
             return None
         return [qml.DepolarizingChannel(p, wires=w) for w in op.wires]
         

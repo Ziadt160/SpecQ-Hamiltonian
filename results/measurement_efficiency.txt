@@ -46,7 +46,7 @@ Spectral ranking places every dead string after every live one:
   EColi      4               136            136
   EColi      6              2080           2080
   20News     4               136            136
-  20News     6              2079           2080
+  20News     6              2080           2080
 
 Consequence: at the paper's tuned setting (p=1000, n=10) roughly 500
 of the 1000 measured observables are identically zero. Spectral

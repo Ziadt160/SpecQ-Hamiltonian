@@ -3,31 +3,31 @@
 --- 1. Comprehensive Model Comparison ---
 Model Name           | Train Acc  | Test Acc   | Train F1   | Test F1   
 ---------------------------------------------------------------------------
-FWHT-SIM             |  94.25%    |  97.50%    |   0.9412   |   0.9751
+FWHT-SIM             |  95.12%    |  98.00%    |   0.9503   |   0.9800
 Logistic Regression  |  93.62%    |  98.00%    |   0.9340   |   0.9800
-Random Forest        |  95.25%    |  97.50%    |   0.9501   |   0.9744
-SVM (RBF)            |  97.75%    |  98.00%    |   0.9772   |   0.9798
+Random Forest        |  96.12%    |  98.00%    |   0.9598   |   0.9798
+SVM (RBF)            |  97.88%    |  98.00%    |   0.9784   |   0.9798
 
 
---- 2. FWHT Extracted Pauli Springs (Top Features) ---
+--- 2. FWHT Extracted Pauli Strings (Top Features) ---
 FWHT selected the top 15 Pauli strings natively driving the class variance:
-  1. ZIII : FWHT_Coefficient = +0.019255 | Magnitude = 0.019255
-  2. ZZZI : FWHT_Coefficient = -0.015195 | Magnitude = 0.015195
-  3. IZZX : FWHT_Coefficient = +0.012821 | Magnitude = 0.012821
-  4. IXYY : FWHT_Coefficient = +0.012641 | Magnitude = 0.012641
-  5. ZZZX : FWHT_Coefficient = -0.011126 | Magnitude = 0.011126
-  6. XXXX : FWHT_Coefficient = -0.009310 | Magnitude = 0.009310
-  7. IIXX : FWHT_Coefficient = -0.009096 | Magnitude = 0.009096
-  8. YYXX : FWHT_Coefficient = -0.009039 | Magnitude = 0.009039
-  9. IZYY : FWHT_Coefficient = -0.008813 | Magnitude = 0.008813
-  10. XIII : FWHT_Coefficient = -0.008718 | Magnitude = 0.008718
-  11. ZXII : FWHT_Coefficient = -0.008617 | Magnitude = 0.008617
-  12. IIIX : FWHT_Coefficient = -0.008525 | Magnitude = 0.008525
-  13. YIYX : FWHT_Coefficient = -0.008462 | Magnitude = 0.008462
-  14. IZIX : FWHT_Coefficient = +0.008458 | Magnitude = 0.008458
-  15. ZZIX : FWHT_Coefficient = -0.008222 | Magnitude = 0.008222
+  1. ZIII : FWHT_Coefficient = +0.016806 | Magnitude = 0.016806
+  2. ZZZI : FWHT_Coefficient = -0.015827 | Magnitude = 0.015827
+  3. ZZIZ : FWHT_Coefficient = -0.015396 | Magnitude = 0.015396
+  4. IIZZ : FWHT_Coefficient = -0.012965 | Magnitude = 0.012965
+  5. IIZI : FWHT_Coefficient = +0.012400 | Magnitude = 0.012400
+  6. ZXYY : FWHT_Coefficient = -0.011546 | Magnitude = 0.011546
+  7. YYXZ : FWHT_Coefficient = -0.010763 | Magnitude = 0.010763
+  8. ZYYX : FWHT_Coefficient = +0.009871 | Magnitude = 0.009871
+  9. XXXZ : FWHT_Coefficient = -0.009818 | Magnitude = 0.009818
+  10. ZZZZ : FWHT_Coefficient = -0.009378 | Magnitude = 0.009378
+  11. XIZI : FWHT_Coefficient = +0.008119 | Magnitude = 0.008119
+  12. IIZX : FWHT_Coefficient = +0.007740 | Magnitude = 0.007740
+  13. IXIZ : FWHT_Coefficient = +0.007681 | Magnitude = 0.007681
+  14. IZXI : FWHT_Coefficient = -0.007502 | Magnitude = 0.007502
+  15. XXXI : FWHT_Coefficient = +0.007245 | Magnitude = 0.007245
 
 --- 3. FWHT Statistical Distribution ---
-Average Interaction Order (K-locality): 2.60 / 4
-Operator Distribution: X=17, Y=8, Z=14, I=21
+Average Interaction Order (K-locality): 2.73 / 4
+Operator Distribution: X=13, Y=6, Z=22, I=19
 
