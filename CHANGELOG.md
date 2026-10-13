@@ -155,6 +155,10 @@ the covariance default.
   strings included, and seeds it with `seed + k`, which collides across seeds.
 - `experiment_monte_carlo_validity` validates the second-moment estimator, not the
   default covariance Δ.
+- `experiment_spectral_ecoli` trains for 30 epochs, which is not enough at $n=6$: with
+  leak-free gene selection both arms predict the majority class (0.8709), so its
+  spectral-vs-random comparison is uninformative. The 0.0465 "improvement" it
+  reported before relied on χ² selection that had seen the test labels.
 - Several benchmark scripts use a single split or seed, and some report accuracy alone
   on the 13.7%-positive E. Coli labels. `overfitting_gap`, `small_data`, `feature_noise`
   and `noise_robustness` write only figures; `advanced_baselines` prints to stdout.
