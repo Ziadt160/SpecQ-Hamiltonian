@@ -1,22 +1,19 @@
-import os
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from src.utils.data_loader import load_wine_normalized as load_and_preprocess_wine
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
 from src.models.sim_classifier import SIMClassifier
-
+from src.utils.data_loader import load_wine_normalized as load_and_preprocess_wine
+from src.utils.paths import results_path
+from src.utils.pauli_utils import classify_pauli_string, generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 # Note: this module previously redefined load_and_preprocess_wine here, which
 # shadowed the import above and referenced several names the file never imported.
 # The loader in src/utils/data_loader.py is equivalent (standardize -> pad to 16
 # -> row-normalize) and additionally guards against zero-norm rows.
 
 def run_wine_experiment():
-    os.makedirs('results', exist_ok=True)
     X, y, n_qubits = load_and_preprocess_wine()
     
     # Split
@@ -68,9 +65,8 @@ def run_wine_experiment():
         })
         
     # Save
-    os.makedirs('results', exist_ok=True)
     df = pd.DataFrame(results)
-    df.to_csv('results/experiment_wine_results.csv', index=False)
+    df.to_csv(results_path('experiment_wine_results.csv'), index=False)
     
     plot_wine_results(df)
 
@@ -91,8 +87,9 @@ def plot_wine_results(df):
     plt.legend()
     plt.grid(True, alpha=0.3)
     
-    plt.savefig('results/wine_results.png')
+    plt.savefig(results_path('wine_results.png'))
     print("\nPlot saved to results/wine_results.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_wine_experiment()

@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below, and cite the parent work it builds on."
+title: "Spectral Pauli Pruning for Flipped Quantum Hamiltonian Classifiers"
+type: software
+authors:
+  - family-names: "Mohammed"
+    given-names: "Ziad Tarek"
+    affiliation: "Evoth Labs"
+version: 0.2.0
+license: MIT
+repository-code: "https://github.com/Ziadt160/SpecQ-Hamiltonian"
+keywords:
+  - quantum machine learning
+  - flipped models
+  - Hamiltonian classifier
+  - Pauli decomposition
+  - feature selection
+references:
+  - type: article
+    title: "An Efficient Quantum Classifier Based on Hamiltonian Representations"
+    authors:
+      - family-names: "Tiblias"
+        given-names: "Federico"
+      - family-names: "Schroeder"
+        given-names: "Anna"
+      - family-names: "Zhang"
+        given-names: "Yue"
+      - family-names: "Gachechiladze"
+        given-names: "Mariami"
+      - family-names: "Gurevych"
+        given-names: "Iryna"
+    year: 2025
+    identifiers:
+      - type: other
+        value: "arXiv:2504.10542"
+    url: "https://arxiv.org/abs/2504.10542"

@@ -1,41 +1,34 @@
-import os
 import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pennylane as qml
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import pennylane as qml
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.svm import SVC
-from sklearn.metrics import roc_auc_score, f1_score
-
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import our unified Spectral SIM Classifier
 from src.models.spectral_sim_classifier import SpectralExactSIMClassifier
-
-from src.utils.data_utils import load_fraud_data
-from src.models.vqc_classifier import VQCPennyLane
-
+from src.models.vqc_classifier import NoisyVQC
+from src.utils.data_utils import load_fraud_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_q_vs_q_experiment():
-    os.makedirs('results/case_study_fraud', exist_ok=True)
     
-    X, y = load_fraud_data(n_samples=1000, n_qubits=4) # 1000 samples for reasonable Q simulation times (4 qubits)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # 1000 samples for reasonable Q simulation times (4 qubits); PCA/scaler fit on train only
+    X_train, X_test, y_train, y_test = load_fraud_split(
+        n_samples=1000, n_qubits=4, test_size=0.3, random_state=42)
     
     results = []
     
     X_tr_t = torch.tensor(X_train, dtype=torch.float64)
     y_tr_t = torch.tensor(y_train, dtype=torch.float64)
     X_te_t = torch.tensor(X_test, dtype=torch.float64)
-    y_te_t = torch.tensor(y_test, dtype=torch.float64)
     
     # 1. Spectral SIM
     print("\n--- Training Spectral SIM ---")
@@ -58,12 +51,13 @@ def run_q_vs_q_experiment():
     for v in variants:
         print(f"\n--- Training VQC ({v}) ---")
         start = time.time()
-        vqc = VQCPennyLane(n_qubits=4, layers=2, variant=v)
+        # Noise-free NoisyVQC (the same model the noise study evaluates at p=0)
+        vqc = NoisyVQC(n_qubits=4, layers=2, variant=v, noise_prob=0.0)
         optimizer = optim.Adam(vqc.parameters(), lr=0.01)
         criterion = nn.BCELoss()
         
         vqc.train()
-        for ep in range(30):
+        for _ in range(30):
             optimizer.zero_grad()
             out = vqc(X_tr_t)
             loss = criterion(out, y_tr_t)
@@ -113,7 +107,7 @@ def run_q_vs_q_experiment():
     })
     
     df_res = pd.DataFrame(results)
-    df_res.to_csv('results/case_study_fraud/q_vs_q_metrics.csv', index=False)
+    df_res.to_csv(results_path('case_study_fraud/q_vs_q_metrics.csv'), index=False)
     print("\n--- Results ---")
     print(df_res)
     
@@ -125,7 +119,8 @@ def run_q_vs_q_experiment():
     plt.title('Quantum vs Quantum: Performance Comparison')
     plt.legend()
     plt.tight_layout()
-    plt.savefig('results/case_study_fraud/q_vs_q_performance.png')
+    plt.savefig(results_path('case_study_fraud/q_vs_q_performance.png'))
     
 if __name__ == '__main__':
+    set_seed()
     run_q_vs_q_experiment()

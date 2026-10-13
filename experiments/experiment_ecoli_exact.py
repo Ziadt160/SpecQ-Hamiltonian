@@ -1,18 +1,16 @@
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.utils.data_loader import load_ecoli_split
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
-from src.models.sim_classifier import SIMClassifier
-from src.models.exact_sim_classifier import ExactSIMClassifier
 
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.models.sim_classifier import SIMClassifier
+from src.utils.data_loader import load_ecoli_split
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def train_exact_sim(X_train, y_train, X_test, y_test, epochs=300):
     print("\n--- Training Exact SIM (PyTorch + PennyLane) ---")
@@ -21,8 +19,7 @@ def train_exact_sim(X_train, y_train, X_test, y_test, epochs=300):
     X_tr = torch.tensor(X_train, dtype=torch.float64)
     y_tr = torch.tensor(y_train, dtype=torch.float64)
     X_te = torch.tensor(X_test, dtype=torch.float64)
-    y_te = torch.tensor(y_test, dtype=torch.float64)
-    
+
     model = ExactSIMClassifier(n_qubits=4, n_layers=3)
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.BCELoss()
@@ -75,13 +72,14 @@ def run_comparison():
     plt.ylabel('BCELoss')
     plt.legend()
     plt.grid(True)
-    plt.savefig('results/exact_sim_convergence.png')
+    plt.savefig(results_path('exact_sim_convergence.png'))
     print("Plot saved to results/exact_sim_convergence.png")
     
     # Save Results
-    with open('results/exact_comparison.txt', 'w') as f:
+    with open(results_path('exact_comparison.txt'), 'w') as f:
         f.write(f"Classical SIM (N=4): {acc_classic:.4f}\n")
         f.write(f"Exact SIM (N=4): {acc_exact:.4f}\n")
 
 if __name__ == "__main__":
+    set_seed()
     run_comparison()

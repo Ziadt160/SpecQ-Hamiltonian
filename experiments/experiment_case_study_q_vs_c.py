@@ -1,13 +1,12 @@
-import os
 import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+
 try:
     from xgboost import XGBClassifier
     HAS_XGB = True
@@ -15,25 +14,21 @@ except ImportError:
     from sklearn.ensemble import HistGradientBoostingClassifier as XGBClassifier
     HAS_XGB = False
 
-from sklearn.metrics import roc_auc_score, f1_score
 
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from sklearn.metrics import f1_score, roc_auc_score
 
 # Import our unified Spectral SIM Classifier (Classical version)
 from src.models.spectral_sim_classifier import SpectralSIMClassifier
-
-from src.utils.data_utils import load_fraud_data
-
+from src.utils.data_utils import load_fraud_split
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_q_vs_c_experiment():
-    os.makedirs('results/case_study_fraud', exist_ok=True)
     
-    # Data Loaded via shared utility (already scaled and normalized)
-    X_norm, y = load_fraud_data(n_samples=5000, n_qubits=6)
-    X_train, X_test, y_train, y_test = train_test_split(X_norm, y, test_size=0.3, random_state=42)
+    # Data Loaded via shared utility (already scaled and normalized; scaler fit on train only)
+    X_train, X_test, y_train, y_test = load_fraud_split(
+        n_samples=5000, n_qubits=6, test_size=0.3, random_state=42)
     
     results = []
     
@@ -107,7 +102,7 @@ def run_q_vs_c_experiment():
     })
     
     df_res = pd.DataFrame(results)
-    df_res.to_csv('results/case_study_fraud/q_vs_c_metrics.csv', index=False)
+    df_res.to_csv(results_path('case_study_fraud/q_vs_c_metrics.csv'), index=False)
     print("\n--- Results ---")
     print(df_res)
     
@@ -121,11 +116,12 @@ def run_q_vs_c_experiment():
     
     plt.xticks(x, df_res['Model'])
     plt.ylabel('Score')
-    plt.title('Quantum (SIM) vs Classical Baselines: Performance Comparison')
+    plt.title('Spectral SIM (classical simulation) vs Classical Baselines: Performance Comparison')
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.savefig('results/case_study_fraud/q_vs_c_performance.png')
+    plt.savefig(results_path('case_study_fraud/q_vs_c_performance.png'))
     
 if __name__ == '__main__':
+    set_seed()
     run_q_vs_c_experiment()

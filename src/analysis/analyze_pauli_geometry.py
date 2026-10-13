@@ -1,42 +1,50 @@
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.feature_selection import SelectKBest, chi2
-from ..utils.pauli_utils import get_pauli_tensor
-from ..utils.data_loader import ECOLI_CSV, REPO_ROOT
-from ..utils.data_loader import load_ecoli_reduced as load_ecoli_data
+from sklearn.model_selection import train_test_split
 
-def get_selected_genes():
+from ..utils.data_loader import (
+    ECOLI_CSV,
+    ECOLI_FIRST_GENE_COLUMN,
+    REPO_ROOT,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from ..utils.paths import results_path
+from ..utils.pauli_utils import get_pauli_tensor
+
+
+def get_gene_names():
+    """Gene column names, in the same column order as load_ecoli_raw() returns them."""
+    return list(pd.read_csv(ECOLI_CSV, nrows=0).columns[ECOLI_FIRST_GENE_COLUMN:])
+
+
+def get_selected_genes(n_qubits=4, test_size=0.3, random_state=42):
     """
-    Re-runs the feature selection logic to get the exact names of the 16 selected genes.
+    Re-runs the feature selection logic to get the exact names of the selected genes,
+    in feature order.
+
+    Reproduces the train-only chi2 selection of load_ecoli_split() for the same split
+    arguments, i.e. the features experiment_ecoli_exact_ablation.py trains on when it
+    writes results/pauli_importance_ranking.csv. This previously fit chi2 on the full
+    dataset, which selects a different gene set (15 of 16 shared at random_state=42);
+    because features are kept in column order, one substitution shifted 12 of the 16
+    heatmap labels onto the wrong genes.
     """
     print("Loading Data to retrieve Gene Names...")
-    # Resolved relative to the package, so this works from any working directory
-    # (the previous hard-coded d:\Evoth Labs\... path only worked on one machine).
-    df = pd.read_csv(ECOLI_CSV)
+    X_genes, y = load_ecoli_raw()
+    Xtr_raw, Xte_raw, y_train, _ = train_test_split(
+        X_genes, y, test_size=test_size, random_state=random_state
+    )
+    _, _, selector = select_topk_chi2(Xtr_raw, Xte_raw, y_train, n_qubits=n_qubits)
 
-    df = df.dropna(subset=['CTZ'])
-    y = df['CTZ'].apply(lambda x: 1 if x == 'R' else 0).values
+    genes = get_gene_names()
+    selected_genes = [genes[i] for i in selector.get_support(indices=True)]
 
-    # Feature columns
-    cols = list(df.columns)
-    try:
-        start_idx = cols.index('CIP') + 1
-    except ValueError:
-        start_idx = 15
-    genes = df.columns[start_idx:]
-    X_genes = df.iloc[:, start_idx:].values
-    
-    # Run Selection
-    selector = SelectKBest(chi2, k=16)
-    selector.fit(X_genes, y)
-    
-    selected_indices = selector.get_support(indices=True)
-    selected_genes = [genes[i] for i in selected_indices]
-    
-    print(f"Selected Genes (N=4 / 16 dims): {selected_genes}")
+    print(f"Selected Genes (N={n_qubits} / {2**n_qubits} dims): {selected_genes}")
     return selected_genes
 
 def analyze_geometry():
@@ -56,13 +64,13 @@ def analyze_geometry():
     # 3. Construct Aggregate Interaction Matrix
     # M_total = Sum( Score_s * |Real(P_s)| )
     # We take Absolute value of P to show "Connectivity Strength" regardless of +/- correlation
-    # We take Real part because pytorch cast to double discards imaginary
+    # We take the Real part, matching the model's P_tensor (real_pauli_stack)
     
     dim = 16
     interaction_matrix = np.zeros((dim, dim))
     
     print("Computing Interaction Matrix...")
-    for idx, row in top_32.iterrows():
+    for _, row in top_32.iterrows():
         p_str = row['String']
         score = row['Score']
         
@@ -85,7 +93,7 @@ def analyze_geometry():
                 cmap='viridis', annot=False)
     plt.title('Gene Interaction Intensity Map\n(Weighted Sum of Top 32 Pauli Strings)')
     plt.tight_layout()
-    plt.savefig('results/gene_interaction_heatmap.png')
+    plt.savefig(results_path('gene_interaction_heatmap.png'))
     print("Saved heatmap to results/gene_interaction_heatmap.png")
     
     # 5. Extract Top Interactions
@@ -122,7 +130,7 @@ def analyze_geometry():
         count += 1
         if count >= 15: break
         
-    with open('results/gene_interaction_report.txt', 'w') as f:
+    with open(results_path('gene_interaction_report.txt'), 'w') as f:
         f.write('\n'.join(analysis_lines))
 
 if __name__ == "__main__":

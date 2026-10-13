@@ -1,20 +1,16 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn.datasets import load_wine, load_digits
+from sklearn.datasets import load_digits, load_wine
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 
 from src.models.exact_sim_classifier import ExactSIMClassifier
 from src.utils.data_loader import load_ecoli_split
-
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
 
 # --- Constants ---
 TOP_32_STRINGS = [
@@ -96,12 +92,11 @@ def evaluate_dataset(name, split_fn):
     X_tr = torch.tensor(X_train, dtype=torch.float64)
     y_tr = torch.tensor(y_train, dtype=torch.float64)
     X_te = torch.tensor(X_test, dtype=torch.float64)
-    y_te = torch.tensor(y_test, dtype=torch.float64)
-    
+
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.BCELoss()
-    
-    for epoch in range(200): # 200 epochs should be enough
+
+    for _ in range(200): # 200 epochs should be enough
         optimizer.zero_grad()
         outputs = model(X_tr)
         loss = criterion(outputs, y_tr)
@@ -131,21 +126,22 @@ def run_universal_experiment():
     acc_wine = evaluate_dataset("Wine (Class 0)", split_loader(load_wine_n4))
     results['Wine'] = acc_wine
 
-    # 3. MNIST
-    acc_mnist = evaluate_dataset("MNIST (Digit 0)", split_loader(load_mnist_n4))
-    results['MNIST'] = acc_mnist
+    # 3. Digits (sklearn 8x8, not full MNIST)
+    acc_mnist = evaluate_dataset("Digits (Digit 0)", split_loader(load_mnist_n4))
+    results['Digits'] = acc_mnist
     
     # Save Report
     print("\n--- Universal Experiment Summary ---")
-    print(f"Pauli Set: Top 32 from E. coli Experiment")
+    print("Pauli Set: Top 32 from E. coli Experiment")
     for name, acc in results.items():
         print(f"{name}: {acc:.4f}")
         
-    with open('results/universal_pauli_results.txt', 'w') as f:
+    with open(results_path('universal_pauli_results.txt'), 'w') as f:
         f.write("Universal Pauli Set Experiment (Top 32 E. coli Strings)\n")
         f.write("====================================================\n")
         for name, acc in results.items():
             f.write(f"{name}: {acc:.4f}\n")
 
 if __name__ == "__main__":
+    set_seed()
     run_universal_experiment()

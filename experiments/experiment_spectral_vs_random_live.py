@@ -19,18 +19,23 @@ This experiment separates them with three arms at equal k:
 spectral vs random_all measures (a) + (b) together.
 spectral vs random_live measures (b) alone -- the honest test of the ranking.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string)
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.models.sim_classifier import SIMClassifier
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings
 
 K_VALUES = [8, 16, 32, 64, 128]
@@ -63,7 +68,6 @@ def score(basis, Xtr, ytr, Xte, yte):
 
 
 def run():
-    os.makedirs('results', exist_ok=True)
     rows = []
 
     for ds, n_qubits, loader in DATASETS:
@@ -97,7 +101,7 @@ def run():
             print(f"  seed {seed} done", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/spectral_vs_random_live.csv', index=False)
+    df.to_csv(results_path('spectral_vs_random_live.csv'), index=False)
 
     piv = df.pivot_table(index=['dataset', 'n_qubits', 'k'],
                          columns='arm', values='f1').reset_index()
@@ -127,7 +131,7 @@ def run():
     lines += ["",
               "Decomposition of the advantage spectral holds over a naive random draw:",
               f"  spectral - random_all   (total)            {gain_all.mean():+.4f}",
-              f"    of which:",
+              "    of which:",
               f"      random_live - random_all (dead filter)  {dead_only.mean():+.4f}"
               f"   ({100 * dead_only.mean() / gain_all.mean():.0f}% of the total)",
               f"      spectral - random_live   (ranking)      {gain_live.mean():+.4f}"
@@ -138,7 +142,7 @@ def run():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/spectral_vs_random_live.txt', 'w') as f:
+    with open(results_path('spectral_vs_random_live.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -165,7 +169,7 @@ def run():
     ax.legend(); ax.grid(axis='y', alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/spectral_vs_random_live.png', dpi=150)
+    plt.savefig(results_path('spectral_vs_random_live.png'), dpi=150)
     print("\nSaved results/spectral_vs_random_live.{csv,txt,png}")
 
 

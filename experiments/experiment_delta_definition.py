@@ -5,15 +5,15 @@ The paper (Eq. 4) specifies
 
     Delta = Cov(X | y=1) - Cov(X | y=0)
 
-but the implementation computes class-conditional *second moments*
+but the original implementation computed class-conditional *second moments*
 
     Delta = E[xx^T | y=1] - E[xx^T | y=0]
 
 with no mean subtraction. These agree only when both class-conditional means
-vanish, which they do not for any dataset here. The two definitions disagree on
-roughly a third of the selected top-32 basis, so this is not a cosmetic
-difference -- one of the paper and the code has to change, and this experiment
-decides which way.
+vanish, which they do not for any dataset here, and they select substantially
+different bases (see the overlap column of the report). The generator now
+exposes both via `moment=` and defaults to 'covariance'; this experiment
+measures whether the choice matters for accuracy.
 
 Selection quality is scored with SIMClassifier (regularized logistic regression
 on the quadratic Pauli features). That is the right probe: experiment_circuit_
@@ -21,18 +21,22 @@ ablation.py shows the variational state contributes no expressivity, so the
 classical model measures basis quality directly, without the optimizer noise
 and 100x cost of a QNode training run.
 """
-import os
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, compute_delta, VALID_MOMENTS)
+    VALID_MOMENTS,
+    generate_spectral_pauli_strings,
+)
 from src.models.sim_classifier import SIMClassifier
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 
 K_VALUES = [8, 16, 32, 50, 64, 128]
 SEEDS = [0, 1, 2, 3, 4]
@@ -68,7 +72,6 @@ def score_basis(basis, Xtr, ytr, Xte, yte):
 
 
 def run_delta_comparison():
-    os.makedirs('results', exist_ok=True)
     rows, overlap_rows = [], []
 
     for ds_name, n_qubits, loader in DATASETS:
@@ -97,9 +100,9 @@ def run_delta_comparison():
 
     df = pd.DataFrame(rows)
     ov = pd.DataFrame(overlap_rows)
-    df.to_csv('results/delta_definition.csv', index=False)
+    df.to_csv(results_path('delta_definition.csv'), index=False)
 
-    lines = ["Delta definition: covariance (paper Eq. 4) vs second moment (code)",
+    lines = ["Delta definition: covariance (paper Eq. 4) vs second moment (legacy code)",
              "=" * 78,
              f"Seeds: {len(SEEDS)}  |  basis sizes: {K_VALUES}",
              "",
@@ -129,7 +132,7 @@ def run_delta_comparison():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/delta_definition.txt', 'w') as f:
+    with open(results_path('delta_definition.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -148,7 +151,7 @@ def run_delta_comparison():
     ax.set_title('How much the two definitions disagree'); ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/delta_definition.png', dpi=150)
+    plt.savefig(results_path('delta_definition.png'), dpi=150)
     print("\nSaved results/delta_definition.{csv,txt,png}")
 
 

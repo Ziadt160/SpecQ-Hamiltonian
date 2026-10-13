@@ -1,6 +1,7 @@
-import numpy as np
-from itertools import product
 from functools import reduce
+from itertools import product
+
+import numpy as np
 
 
 def get_pauli_matrix(label):

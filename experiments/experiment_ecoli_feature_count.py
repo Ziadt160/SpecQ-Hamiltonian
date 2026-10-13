@@ -15,18 +15,18 @@ balanced accuracy) actually improve?
 
 All selection is fit on the training split only.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
+from sklearn.model_selection import train_test_split
 
-from src.utils.data_loader import load_ecoli_raw, row_normalize
-from src.utils.pauli_utils import generate_pauli_strings
 from src.models.sim_classifier import SIMClassifier
+from src.utils.data_loader import load_ecoli_raw, row_normalize
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 
 K_VALUES = [16, 32, 64, 128, 256, 512, 1024, 2048]
 # Gene counts that are an exact power of two can also feed the Pauli quadratic
@@ -82,7 +82,6 @@ def evaluate_k(X_genes, y, k, test_size=0.3, random_state=42):
 
 
 def run_feature_count_sweep():
-    os.makedirs('results', exist_ok=True)
 
     X_genes, y = load_ecoli_raw()
     nonzero_genes = int((X_genes.sum(axis=0) > 0).sum())
@@ -106,7 +105,7 @@ def run_feature_count_sweep():
         print(msg, flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/ecoli_feature_count.csv', index=False)
+    df.to_csv(results_path('ecoli_feature_count.csv'), index=False)
 
     lines = [
         "E. Coli feature-count sweep (chi2 selection fit on train split only)",
@@ -135,7 +134,7 @@ def run_feature_count_sweep():
     ]
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/ecoli_feature_count.txt', 'w') as f:
+    with open(results_path('ecoli_feature_count.txt'), 'w') as f:
         f.write(report + "\n")
 
     # Plot
@@ -164,7 +163,7 @@ def run_feature_count_sweep():
     ax.legend(); ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/ecoli_feature_count.png', dpi=150)
+    plt.savefig(results_path('ecoli_feature_count.png'), dpi=150)
     print("\nSaved results/ecoli_feature_count.{csv,txt,png}")
 
 

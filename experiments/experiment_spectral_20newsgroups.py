@@ -1,23 +1,16 @@
-import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
-import os
-import sys
-
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+
 from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
 from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_20newsgroups_split
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings
-from src.utils.data_loader import load_20newsgroups_n4 as load_and_preprocess_20newsgroups_n4
-
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def train_model(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, name):
     print(f"\n--- Training {name} (Terms: {len(pauli_strings)}) ---")
@@ -52,13 +45,10 @@ def train_model(X_train, y_train, X_test, y_test, pauli_strings, n_qubits, name)
     return acc, losses
 
 def run_spectral_experiment():
-    os.makedirs('results', exist_ok=True)
     
-    # 1. Load Data (N=4)
-    X, y, n_qubits = load_and_preprocess_20newsgroups_n4()
-    
-    # Split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # 1. Load Data (N=4), split first; TF-IDF, PCA and scaling fit on train only
+    n_qubits = 4
+    X_train, X_test, y_train, y_test = load_20newsgroups_split(n_qubits, test_size=0.3, random_state=42)
     
     # 2. Generate Spectral Basis (using Training Data ONLY)
     print("\nGenerating Spectral Basis from Training Data...")
@@ -93,14 +83,15 @@ def run_spectral_experiment():
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/spectral_experiment_convergence.png')
+    plt.savefig(results_path('spectral_experiment_convergence.png'))
     print("Plot saved to results/spectral_experiment_convergence.png")
     
     # Save text
-    with open('results/spectral_experiment_results.txt', 'w') as f:
+    with open(results_path('spectral_experiment_results.txt'), 'w') as f:
         f.write(f"Full Basis Accuracy: {acc_full:.4f}\n")
         f.write(f"Spectral Top-{top_k} Accuracy: {acc_spec:.4f}\n")
         f.write(f"Random Top-{top_k} Accuracy: {acc_rand:.4f}\n")
 
 if __name__ == "__main__":
+    set_seed()
     run_spectral_experiment()

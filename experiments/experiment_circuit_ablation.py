@@ -27,18 +27,18 @@ should beat `none`. If it is a redundant reparametrization, all three land in
 the same place -- and `none` may in fact do better, because the multiplicative
 e_j factors rescale gradients unevenly and slow the optimizer.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
 
-from src.utils.data_loader import load_ecoli_split
 from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
 from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_ecoli_split
+from src.utils.paths import results_path
 
 ARMS = ['trained', 'frozen', 'none']
 
@@ -108,7 +108,6 @@ def train_and_eval(mode, pauli_strings, X_train, y_train, X_test, y_test,
 
 
 def run_ablation(n_seeds=5, top_k=32, epochs=150):
-    os.makedirs('results', exist_ok=True)
 
     X_train, X_test, y_train, y_test = load_ecoli_split(n_qubits=4, test_size=0.3,
                                                         random_state=42)
@@ -134,7 +133,7 @@ def run_ablation(n_seeds=5, top_k=32, epochs=150):
                   f"loss={m['train_loss']:.4f}", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/circuit_ablation.csv', index=False)
+    df.to_csv(results_path('circuit_ablation.csv'), index=False)
 
     summary = df.groupby('mode')[['accuracy', 'balanced_accuracy', 'f1', 'train_loss']]
     mean, std = summary.mean(), summary.std()
@@ -166,7 +165,7 @@ def run_ablation(n_seeds=5, top_k=32, epochs=150):
     report = "\n".join(lines)
     print("\n" + report)
 
-    with open('results/circuit_ablation.txt', 'w') as f:
+    with open(results_path('circuit_ablation.txt'), 'w') as f:
         f.write(report + "\n")
 
     # Plot
@@ -194,7 +193,7 @@ def run_ablation(n_seeds=5, top_k=32, epochs=150):
     ax.grid(True, axis='y', alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/circuit_ablation.png', dpi=150)
+    plt.savefig(results_path('circuit_ablation.png'), dpi=150)
     print("\nSaved results/circuit_ablation.{csv,txt,png}")
 
 

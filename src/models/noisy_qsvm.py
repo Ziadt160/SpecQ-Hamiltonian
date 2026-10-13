@@ -1,7 +1,9 @@
-import pennylane as qml
 import numpy as np
+import pennylane as qml
 from sklearn.svm import SVC
+
 from ..utils.noise_utils import get_depolarizing_noise_model
+
 
 class NoisyQSVM:
     def __init__(self, n_qubits, noise_prob=0.0):

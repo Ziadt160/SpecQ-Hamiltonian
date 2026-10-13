@@ -35,6 +35,8 @@ The choice does change *which* strings are selected -- only 21-25% overlap in
 the top-16 on E. Coli, converging to 94% by k=128 -- so results are not
 comparable across settings. Pass moment='second_moment' to reproduce older runs.
 """
+import warnings
+
 import numpy as np
 
 from ..utils.pauli_utils import generate_pauli_strings, get_pauli_tensor
@@ -61,7 +63,8 @@ def compute_delta(X, y, moment='covariance'):
     X0, X1 = X[y == 0], X[y == 1]
 
     if len(X0) < 2 or len(X1) < 2:
-        print("Warning: Not enough samples per class to estimate Delta.")
+        warnings.warn("Fewer than two samples in a class; Delta is set to zero.",
+                      RuntimeWarning, stacklevel=2)
         return np.zeros((dim, dim))
 
     if moment == 'second_moment':

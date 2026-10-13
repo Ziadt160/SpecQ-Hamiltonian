@@ -28,7 +28,6 @@ costs one parameter and does not change the model's discriminative content.
 This is flagged rather than hidden: the paper's equations omit it, and it is
 worth checking against the authors' reference implementation.
 """
-import numpy as np
 import pennylane as qml
 import torch
 import torch.nn as nn

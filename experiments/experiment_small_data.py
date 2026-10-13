@@ -1,24 +1,18 @@
-import sys
-import os
-print("Starting script execution...", flush=True)
-# Hack to resolve mixed imports (some use src., some use local)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.append(os.path.dirname(__file__))
-
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.utils.pauli_utils import generate_pauli_strings
-from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from sklearn.model_selection import train_test_split
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def train_model(model, X_train, y_train, epochs=200, lr=0.01):
     opt = optim.Adam(model.parameters(), lr=lr)
@@ -47,10 +41,8 @@ def run_small_data_experiment(n_seeds=5):
     
     # We want to test on a FIXED test set, but vary training set size.
     # So we first split out a large Test Set.
-    # If dataset is small, this is tricky. E. Coli is ~450 samples?
-    # Let's verify size. Assuming small.
-    # We'll use 30% for Test, 70% for Train (Pool).
-    # Then subsample from Train Pool.
+    # E. Coli has 1,935 labelled samples: 30% for Test, 70% for Train (Pool),
+    # then subsample from Train Pool.
     
     for seed in range(n_seeds):
         print(f"--- Seed {seed+1}/{n_seeds} ---")
@@ -122,8 +114,10 @@ def run_small_data_experiment(n_seeds=5):
     plt.title('Small Data Stress Test: Spectral vs Full')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/small_data_stress.png')
+    plt.savefig(results_path('small_data_stress.png'))
     print("Saved plot to results/small_data_stress.png")
 
 if __name__ == "__main__":
+    print("Starting script execution...", flush=True)
+    set_seed()
     run_small_data_experiment()

@@ -14,7 +14,7 @@ Two settings where this repository departs from Tiblias et al., tested directly.
 (2) Input normalization.
     The paper uses raw embeddings -- "no further pre-processing or
     dimensionality reduction is performed". This repository L2-normalizes every
-    sample to unit norm, commented "Quantum State Normalization". But in a
+    sample to unit norm (row_normalize in src/utils/data_loader.py). But in a
     flipped model the input is an *observable*, not a state: it never needs unit
     norm, and since alpha_j = x^T P_j x is quadratic, normalizing discards
     per-sample magnitude. This ablation measures what that costs.
@@ -22,20 +22,21 @@ Two settings where this repository departs from Tiblias et al., tested directly.
 Both use SIMClassifier, which experiment_circuit_ablation.py established is the
 equivalent hypothesis class to the full quantum model, at a fraction of the cost.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string, count_dead_strings)
+    count_dead_strings,
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.models.sim_classifier import SIMClassifier
-from src.utils.data_loader import (
-    load_ecoli_raw, row_normalize, _fetch_20newsgroups)
-from src.utils.pauli_utils import generate_pauli_strings
+from src.utils.data_loader import _fetch_20newsgroups, load_ecoli_raw, row_normalize
+from src.utils.paths import results_path
 
 SEEDS = [0, 1, 2]
 FRACTIONS = [0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 1.00]
@@ -133,15 +134,14 @@ def run_normalization_ablation():
 
 
 def main():
-    os.makedirs('results', exist_ok=True)
     dfc = run_count_sweep()
     dfn = run_normalization_ablation()
-    dfc.to_csv('results/pauli_count_sweep.csv', index=False)
-    dfn.to_csv('results/normalization_ablation.csv', index=False)
+    dfc.to_csv(results_path('pauli_count_sweep.csv'), index=False)
+    dfn.to_csv(results_path('normalization_ablation.csv'), index=False)
 
     lines = ["Pauli-count sweep and normalization ablation",
              "=" * 74, "",
-             "(1) Accuracy vs basis size, as a FRACTION of the live basis.",
+             "(1) E. Coli: accuracy vs basis size, as a FRACTION of the live basis.",
              "    The paper's p=1000 at n=10 is 0.19% of the live basis;",
              "    this repo's top-128 at n=4 is 94% of it. Same axis, finally.", "",
              f"  {'N':>3}{'fraction':>10}{'k':>7}{'accuracy':>11}{'bal-acc':>10}{'F1':>9}"]
@@ -166,7 +166,7 @@ def main():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/sweep_and_normalization.txt', 'w') as f:
+    with open(results_path('sweep_and_normalization.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -176,7 +176,7 @@ def main():
         ax.plot(g.index * 100, g['f1'], 'o-', label=f'N={nq}')
     ax.set_xscale('log')
     ax.set_xlabel('Basis size (% of live Pauli basis)')
-    ax.set_ylabel('F1'); ax.set_title('Does more Pauli strings keep helping?')
+    ax.set_ylabel('F1'); ax.set_title('Do more Pauli strings keep helping? (E. Coli)')
     ax.legend(); ax.grid(alpha=0.3)
 
     ax = axes[1]
@@ -192,7 +192,7 @@ def main():
     ax.legend(); ax.grid(axis='y', alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/sweep_and_normalization.png', dpi=150)
+    plt.savefig(results_path('sweep_and_normalization.png'), dpi=150)
     print("\nSaved results/{pauli_count_sweep,normalization_ablation}.csv "
           "and results/sweep_and_normalization.{txt,png}")
 

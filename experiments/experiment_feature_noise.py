@@ -1,24 +1,18 @@
-import sys
-import os
-print("Starting script execution...", flush=True)
-# Hack to resolve mixed imports (some use src., some use local)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.append(os.path.dirname(__file__))
-
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from src.models.exact_sim_classifier import ExactSIMClassifier
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.utils.pauli_utils import generate_pauli_strings
-from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from sklearn.model_selection import train_test_split
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_ecoli_raw, select_topk_chi2
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def add_feature_noise(X, noise_level=0.1):
     """
@@ -116,8 +110,9 @@ def run_feature_noise_experiment(n_seeds=5):
     plt.title('Robustness to Feature Noise: Spectral vs Full')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/feature_noise_sweep.png')
+    plt.savefig(results_path('feature_noise_sweep.png'))
     print("Saved plot to results/feature_noise_sweep.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_feature_noise_experiment()

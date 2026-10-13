@@ -1,13 +1,13 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import os
-from src.utils.pauli_utils import generate_pauli_strings, classify_pauli_string
+
 from src.models.sim_classifier import SIMClassifier
 from src.utils.data_generator import generate_dataset
-
+from src.utils.paths import results_path
+from src.utils.pauli_utils import classify_pauli_string, generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 def run_experiment():
     n_qubits = 4 # Keep small for simulation speed (dim=16)
@@ -87,9 +87,8 @@ def run_experiment():
             print(f"  -> Test Acc: {test_acc:.4f} | Top Weights: {[k for k,v in class_weight_norms.items() if v > 0.1]}")
 
     # Save results
-    os.makedirs('results', exist_ok=True)
     df = pd.DataFrame(results)
-    df.to_csv('results/experiment_results.csv', index=False)
+    df.to_csv(results_path('experiment_results.csv'), index=False)
     print("\nResults saved to results/experiment_results.csv")
     
     # Plotting
@@ -117,7 +116,7 @@ def plot_results(df):
         pass
 
     plt.tight_layout()
-    plt.savefig('results/accuracy_plot.png')
+    plt.savefig(results_path('accuracy_plot.png'))
     print("Plot saved to results/accuracy_plot.png")
     
     # Weight distribution plot
@@ -136,8 +135,9 @@ def plot_results(df):
         ax.set_ylabel('Mean Abs Weight')
         
     plt.tight_layout()
-    plt.savefig('results/weights_plot.png')
+    plt.savefig(results_path('weights_plot.png'))
     print("Plot saved to results/weights_plot.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_experiment()

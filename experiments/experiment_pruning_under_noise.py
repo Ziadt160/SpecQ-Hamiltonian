@@ -25,11 +25,18 @@ The damping model is exact, not an approximation: per-qubit
 DepolarizingChannel(p) shrinks every non-identity Pauli factor by (1 - 4p/3),
 verified against a density-matrix simulation to 1.6e-13. Sampling is drawn from
 the exact binomial rather than a Gaussian approximation.
+
+Outcome: the F1-optimal k is essentially flat in p. The argument above assumes the
+error eps_j varies across samples, but here e_hat_j is drawn once per
+observable, so lambda_j e_j + eps_j is a single constant on column j -- and
+score() standardises *after* multiplying by e_hat, which divides any non-zero
+constant out exactly. Damping and shot error are therefore both invisible to
+the fit; only an estimate of exactly 0 (possible when S/k is even) changes it.
+experiment_penalised_pruning.py removes that escape.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import pennylane as qml
 import torch
 from sklearn.linear_model import LogisticRegression
@@ -38,10 +45,16 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string)
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.models.exact_sim_classifier import pauli_observable, real_pauli_stack
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings
 
 K_VALUES = [4, 8, 16, 32, 64, 128]
@@ -106,7 +119,6 @@ DATASETS = [('EColi', 4, ecoli), ('20News', 4, newsgroups)]
 
 
 def run():
-    os.makedirs('results', exist_ok=True)
     rows = []
 
     for ds, n_qubits, loader in DATASETS:
@@ -146,7 +158,7 @@ def run():
                 print(f"  seed {seed} {arm} done", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/pruning_under_noise.csv', index=False)
+    df.to_csv(results_path('pruning_under_noise.csv'), index=False)
 
     lines = ["Optimal Pauli-basis size as a function of noise and shot budget",
              "=" * 78,
@@ -154,6 +166,9 @@ def run():
              "",
              "Damping is exact: DepolarizingChannel(p) per qubit shrinks each",
              "non-identity Pauli factor by (1-4p/3); verified to 1.6e-13.",
+             "Features are standardised after multiplying by e_hat, which divides",
+             "out any non-zero per-column factor, so p and the budget can only act",
+             "through estimates that are exactly 0.",
              "",
              "Best k (by F1) for each noise / budget combination:",
              ""]
@@ -190,7 +205,7 @@ def run():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/pruning_under_noise.txt', 'w') as f:
+    with open(results_path('pruning_under_noise.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -200,7 +215,7 @@ def run():
         g = sub[sub.p == p].groupby('k')['f1'].mean()
         ax.plot(g.index, g.values, 'o-', label=f'p={p}')
     ax.set_xscale('log', base=2); ax.set_xlabel('Basis size k'); ax.set_ylabel('F1')
-    ax.set_title('Accuracy vs basis size at S=1,000 shots')
+    ax.set_title('F1 vs basis size at S=1,000 shots (datasets pooled)')
     ax.legend(); ax.grid(alpha=0.3)
 
     ax = axes[1]
@@ -213,12 +228,12 @@ def run():
         lbl = 'analytic' if np.isinf(budget) else f'S={budget:,}'
         ax.plot(NOISE_LEVELS, best, style, label=lbl)
     ax.set_yscale('log', base=2)
-    ax.set_xlabel('Depolarizing rate p'); ax.set_ylabel('Accuracy-optimal k')
-    ax.set_title('Does noise favour a smaller basis?')
+    ax.set_xlabel('Depolarizing rate p'); ax.set_ylabel('F1-optimal k')
+    ax.set_title('Does noise favour a smaller basis? (datasets pooled)')
     ax.legend(); ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/pruning_under_noise.png', dpi=150)
+    plt.savefig(results_path('pruning_under_noise.png'), dpi=150)
     print("\nSaved results/pruning_under_noise.{csv,txt,png}")
 
 

@@ -1,9 +1,11 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
-from src.utils.pauli_utils import get_pauli_tensor, generate_pauli_strings
-from sklearn.model_selection import train_test_split
+import numpy as np
+
+from src.utils.data_loader import load_20newsgroups_projected
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings, get_pauli_tensor
+from src.utils.seeds import set_seed
+
 
 def compute_mc_estimate(X, y, pauli_string, n_samples=1000):
     """
@@ -82,18 +84,12 @@ def run_mc_validation():
     
     # 1. Compute EXACT coefficients (Ground Truth)
     print("Computing Exact Spectral Coefficients...")
-    # This uses the full matrix method inside generate_spectral_pauli_strings
-    _, exact_coefs, _ = generate_spectral_pauli_strings(X, y, 4) 
-    # Wait, generate_spectral_pauli_strings returns: sorted_strings, coefficients, magnitudes
-    # And it sorts them.
-    # To compare, we need the SAME strings.
-    # So let's extract unsorted? No, generate_spectral sorts.
-    
-    # Let's just generate strings and compute exact delta manually to be sure about ordering.
-    
+    # Computed here in unsorted string order so it lines up with the MC estimates.
+    # This is the SECOND-MOMENT Delta (moment='second_moment'), which is what the
+    # MC estimator below targets; the library default is now 'covariance', whose
+    # estimator would also need the class-mean term mu^T P mu.
     strings = generate_pauli_strings(4)
-    
-    # Re-compute Exact Delta manually for certainty
+
     dim = 16
     X0 = X[y==0]
     X1 = X[y==1]
@@ -149,8 +145,9 @@ def run_mc_validation():
     plt.title('Error Distribution')
     
     plt.tight_layout()
-    plt.savefig('results/mc_validation.png')
+    plt.savefig(results_path('mc_validation.png'))
     print("Validation plot saved to results/mc_validation.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_mc_validation()

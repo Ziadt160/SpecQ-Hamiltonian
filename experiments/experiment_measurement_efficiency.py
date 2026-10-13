@@ -18,16 +18,22 @@ strings a random draw of size p actually contains, and confirms that spectral
 selection avoids them for free -- giving an efficiency argument for spectral
 over random that does not depend on any accuracy comparison.
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string, count_dead_strings)
+    count_dead_strings,
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings, get_pauli_tensor
 
 N_RANGE = range(2, 13)
@@ -77,7 +83,6 @@ def news_train(n_qubits, seed):
 
 
 def run_measurement_efficiency():
-    os.makedirs('results', exist_ok=True)
     rng = np.random.default_rng(0)
 
     print("=== 1. dead strings really are identically zero ===", flush=True)
@@ -139,8 +144,8 @@ def run_measurement_efficiency():
                   f"is 100% live")
     dfs = pd.DataFrame(spec_rows)
 
-    dfa.to_csv('results/measurement_efficiency.csv', index=False)
-    dfd.to_csv('results/measurement_efficiency_draws.csv', index=False)
+    dfa.to_csv(results_path('measurement_efficiency.csv'), index=False)
+    dfd.to_csv(results_path('measurement_efficiency_draws.csv'), index=False)
 
     lines = ["Measurement efficiency: random vs spectral Pauli selection",
              "=" * 74,
@@ -164,8 +169,13 @@ def run_measurement_efficiency():
     for _, r in dfd.iterrows():
         lines.append(f"  {int(r.n_qubits):>3}{int(r.p):>7}{r.mean_dead_frac:>8.1%}"
                      f"{r.wasted_measurements:>10.0f}")
+    # "Every dead after every live" holds exactly when the first dead rank equals
+    # the live count; otherwise some live string ranks below a dead one.
+    all_live_first = bool((dfs['first_dead_rank'] == dfs['n_live']).all())
     lines += ["",
-              "Spectral ranking places every dead string after every live one:",
+              ("Spectral ranking places every dead string after every live one:"
+               if all_live_first else
+               "Rank of the first dead string (top-k is 100% live for k <= that rank):"),
               f"  {'dataset':<9}{'n':>3}{'first dead rank':>18}{'live strings':>15}"]
     for _, r in dfs.iterrows():
         lines.append(f"  {r.dataset:<9}{int(r.n_qubits):>3}"
@@ -177,7 +187,7 @@ def run_measurement_efficiency():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/measurement_efficiency.txt', 'w') as f:
+    with open(results_path('measurement_efficiency.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -199,7 +209,7 @@ def run_measurement_efficiency():
     ax.legend(); ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/measurement_efficiency.png', dpi=150)
+    plt.savefig(results_path('measurement_efficiency.png'), dpi=150)
     print("\nSaved results/measurement_efficiency.{csv,txt,png}")
 
 

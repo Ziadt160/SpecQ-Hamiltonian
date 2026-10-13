@@ -22,10 +22,9 @@ path cannot.
 Both spectral and random-from-live orderings are swept, so the overfitting
 question can be asked separately of "more strings" and "worse strings".
 """
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import torch
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, f1_score
@@ -33,10 +32,16 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from src.generators.spectral_pauli_generator import (
-    generate_spectral_pauli_strings, is_dead_string)
+    generate_spectral_pauli_strings,
+    is_dead_string,
+)
 from src.models.exact_sim_classifier import real_pauli_stack
 from src.utils.data_loader import (
-    load_20newsgroups_projected, load_ecoli_raw, select_topk_chi2)
+    load_20newsgroups_projected,
+    load_ecoli_raw,
+    select_topk_chi2,
+)
+from src.utils.paths import results_path
 from src.utils.pauli_utils import generate_pauli_strings
 
 FEATURE_CHUNK = 256          # Pauli strings materialised at a time
@@ -107,7 +112,6 @@ def evaluate(f_tr, f_te, ytr, yte):
 
 
 def run():
-    os.makedirs('results', exist_ok=True)
     rows = []
 
     for ds, n_qubits, loader in DATASETS:
@@ -141,7 +145,7 @@ def run():
             print(f"  seed {seed} done", flush=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv('results/pruning_limits.csv', index=False)
+    df.to_csv(results_path('pruning_limits.csv'), index=False)
 
     lines = ["Pruning limits and overfitting vs Pauli basis size",
              "=" * 80,
@@ -187,6 +191,8 @@ def run():
         lines.append("")
 
     lines += ["(3) Does a worse ordering overfit faster? gap at the full basis:",
+              "    (degenerate: at k = live basis both arms hold the same strings,",
+              "     so any difference is solver noise, not an ordering effect)",
               f"  {'dataset':<9}{'n':>3}{'spectral':>11}{'random_live':>14}"]
     for (ds, nq), g in df.groupby(['dataset', 'n_qubits']):
         n_live = int(g['n_live'].iloc[0])
@@ -196,7 +202,7 @@ def run():
 
     report = "\n".join(lines)
     print("\n" + report)
-    with open('results/pruning_limits.txt', 'w') as f:
+    with open(results_path('pruning_limits.txt'), 'w') as f:
         f.write(report + "\n")
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
@@ -226,10 +232,10 @@ def run():
         ax.plot(g.index, g.values, style, label=arm)
     ax.set_xscale('log', base=2); ax.set_xlabel('Basis size k')
     ax.set_ylabel('train F1 - test F1')
-    ax.set_title('Overfitting gap'); ax.legend(); ax.grid(alpha=0.3)
+    ax.set_title('Overfitting gap (datasets pooled)'); ax.legend(); ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('results/pruning_limits.png', dpi=150)
+    plt.savefig(results_path('pruning_limits.png'), dpi=150)
     print("\nSaved results/pruning_limits.{csv,txt,png}")
 
 

@@ -1,11 +1,31 @@
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 build/
 dist/
 .ipynb_checkpoints/
+
+# Environments
 .venv/
 venv/
+.env
 
-# Large datasets - GitHub rejects files over 100MB
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Hydra run directories from earlier versions of the code
+outputs/
+multirun/
+
+# Large datasets fetched separately (see README, "Data") - GitHub rejects files over 100 MB
 data/creditcard_2023.csv

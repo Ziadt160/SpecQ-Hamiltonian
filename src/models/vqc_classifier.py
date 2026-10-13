@@ -1,7 +1,9 @@
+import pennylane as qml
 import torch
 import torch.nn as nn
-import pennylane as qml
+
 from ..utils.noise_utils import get_depolarizing_noise_model
+
 
 class NoisyVQC(nn.Module):
     def __init__(self, n_qubits, layers=2, variant='StronglyEntangling', noise_prob=0.0):
@@ -16,6 +18,8 @@ class NoisyVQC(nn.Module):
             weight_shape = (layers, n_qubits, 3)
         elif variant == 'BasicEntangling':
             weight_shape = (layers, n_qubits)
+        else:
+            raise ValueError(f"variant must be 'StronglyEntangling' or 'BasicEntangling', got {variant!r}")
             
         self.weights = nn.Parameter(torch.randn(weight_shape, dtype=torch.float64))
         

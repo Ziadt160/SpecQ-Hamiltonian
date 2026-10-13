@@ -1,4 +1,4 @@
-Delta definition: covariance (paper Eq. 4) vs second moment (code)
+Delta definition: covariance (paper Eq. 4) vs second moment (legacy code)
 ==============================================================================
 Seeds: 5  |  basis sizes: [8, 16, 32, 50, 64, 128]
 

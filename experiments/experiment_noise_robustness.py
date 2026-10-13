@@ -1,16 +1,17 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
-from src.models.exact_sim_classifier import ExactSIMClassifier
+from sklearn.model_selection import train_test_split
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_20newsgroups_projected
+from src.utils.paths import results_path
 from src.utils.seeds import set_seed
-set_seed()
+
 
 class NoisySIMClassifier(ExactSIMClassifier):
     def __init__(self, n_qubits, n_layers=2, pauli_strings=None, noise_prob=0.0):
@@ -41,8 +42,10 @@ class NoisySIMClassifier(ExactSIMClassifier):
                 weights.append(w)
             weights_t = torch.tensor(weights, device=expectations.device, dtype=expectations.dtype)
             
-            # Damping: (1 - p)^w
-            damping = (1 - self.noise_prob) ** weights_t
+            # Damping: (1 - 4p/3)^w, exact for a per-qubit DepolarizingChannel(p),
+            # the convention of the other noise experiments. The previous (1 - p)^w
+            # is the rho -> (1-p) rho + p I/2 parametrisation, a different p.
+            damping = (1 - 4 * self.noise_prob / 3) ** weights_t
             expectations = expectations * damping
             
         # Combine
@@ -51,7 +54,7 @@ class NoisySIMClassifier(ExactSIMClassifier):
         
         # We need to broadcast expectations
         exp_expanded = expectations.unsqueeze(0) # (1, K)
-        w_expanded = self.w.unsqueeze(0) # (1, K)
+        w_expanded = self.w # (1, K) -- ExactSIMClassifier stores w as (num_classes, K)
         
         combined = quad_features * w_expanded * exp_expanded
         
@@ -91,12 +94,12 @@ def run_noise_experiment(n_seeds=5):
         avg_weight_spec += w_spec
         
         # Train Clean Models
-        def train_clean(p_strings):
+        def train_clean(p_strings, X_tr, y_tr):
             model = NoisySIMClassifier(4, pauli_strings=p_strings, noise_prob=0.0)
             opt = optim.Adam(model.parameters(), lr=0.01)
             crt = nn.BCELoss()
-            X_t = torch.tensor(X_train, dtype=torch.float64)
-            y_t = torch.tensor(y_train, dtype=torch.float64)
+            X_t = torch.tensor(X_tr, dtype=torch.float64)
+            y_t = torch.tensor(y_tr, dtype=torch.float64)
             for _ in range(60): # Slightly more epochs
                 opt.zero_grad()
                 loss = crt(model(X_t), y_t)
@@ -104,8 +107,8 @@ def run_noise_experiment(n_seeds=5):
                 opt.step()
             return model
 
-        model_full = train_clean(full_basis)
-        model_spec = train_clean(spectral_50)
+        model_full = train_clean(full_basis, X_train, y_train)
+        model_spec = train_clean(spectral_50, X_train, y_train)
         
         # Test Noise Levels
         X_test_t = torch.tensor(X_test, dtype=torch.float64)
@@ -145,13 +148,14 @@ def run_noise_experiment(n_seeds=5):
     plt.plot(noise_levels, mean_spec, 's-', label=f'Spectral Top-50 (Avg W={avg_weight_spec:.1f})', color='orange')
     plt.fill_between(noise_levels, mean_spec - std_spec, mean_spec + std_spec, color='orange', alpha=0.15)
     
-    plt.xlabel('Depolarizing Noise Probability (p)')
+    plt.xlabel('Depolarizing Noise Probability p (per-qubit DepolarizingChannel)')
     plt.ylabel('Test Accuracy')
     plt.title(f'Noise Robustness (Mean of {n_seeds} runs)\nSpectral Selection Favors Lower Weight Terms')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('results/noise_robustness.png', dpi=300)
+    plt.savefig(results_path('noise_robustness.png'), dpi=300)
     print("Saved plot to results/noise_robustness.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_noise_experiment()

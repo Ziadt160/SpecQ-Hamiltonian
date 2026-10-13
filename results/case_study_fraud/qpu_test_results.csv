@@ -1,2 +1,2 @@
 Device,Backend,Shots,TopK,Test_AUC,Train_Time
-default.qubit,,100,16,0.75,18.64720582962036
+default.qubit,,1024,16,0.78,20.334414958953857

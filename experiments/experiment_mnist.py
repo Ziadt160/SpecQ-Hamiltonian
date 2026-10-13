@@ -1,36 +1,24 @@
-import hydra
-from omegaconf import DictConfig, OmegaConf
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
-from src.utils.data_loader import load_digits_normalized as load_and_preprocess_digits
-from src.utils.pauli_utils import generate_pauli_strings
 from src.models.sim_classifier import SIMClassifier
+from src.utils.data_loader import load_digits_normalized as load_and_preprocess_digits
+from src.utils.paths import results_path
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.datasets import load_digits
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-
-set_seed()
 
 # Note: this module previously redefined load_and_preprocess_digits here, which
 # shadowed the import above and referenced several names the file never imported.
 # The loader in src/utils/data_loader.py is equivalent (8x8 digits -> N=6,
 # standardized then row-normalized), so the duplicate has been removed.
 
-@hydra.main(config_path="../configs", config_name="base", version_base=None)
 def run_mnist_experiment():
-    os.makedirs('results', exist_ok=True)
     print("Loading Digits dataset...")
     X, y, n_qubits = load_and_preprocess_digits()
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     
     print(f"Generating Pauli strings for N={n_qubits} (this may take a moment)...")
     all_strings = generate_pauli_strings(n_qubits)
@@ -66,7 +54,7 @@ def run_mnist_experiment():
     df_feats = pd.DataFrame(feat_data).sort_values('Importance', ascending=False)
     print("\n--- Top 10 Features ---")
     print(df_feats.head(10))
-    df_feats.to_csv('results/mnist_full_features.csv', index=False)
+    df_feats.to_csv(results_path('mnist_full_features.csv'), index=False)
     
     # 3. Ablation by Order
     print("\n--- Ablation by Interaction Order ---")
@@ -98,7 +86,7 @@ def run_mnist_experiment():
         })
         
     df_res = pd.DataFrame(results)
-    df_res.to_csv('results/mnist_order_ablation.csv', index=False)
+    df_res.to_csv(results_path('mnist_order_ablation.csv'), index=False)
     
     plot_mnist_results(df_res, df_feats)
 
@@ -108,7 +96,7 @@ def plot_mnist_results(df_res, df_feats):
     # Plot 1
     ax = axes[0]
     ax.plot(df_res['Max_Order'], df_res['Test_Acc'], marker='o', linewidth=2, color='crimson')
-    ax.set_title('MNIST (8x8): Accuracy vs Max Interaction Order')
+    ax.set_title('Digits (8x8): Accuracy vs Max Interaction Order')
     ax.set_xlabel('Max Pauli Weight')
     ax.set_ylabel('Test Accuracy')
     ax.grid(True)
@@ -120,8 +108,9 @@ def plot_mnist_results(df_res, df_feats):
     ax.set_title('Top 50 Feature Types')
     
     plt.tight_layout()
-    plt.savefig('results/mnist_analysis.png')
+    plt.savefig(results_path('mnist_analysis.png'))
     print("Plot saved to results/mnist_analysis.png")
 
 if __name__ == "__main__":
+    set_seed()
     run_mnist_experiment()

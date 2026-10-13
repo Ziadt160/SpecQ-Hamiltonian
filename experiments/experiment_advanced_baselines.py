@@ -1,17 +1,16 @@
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from src.utils.pauli_utils import generate_pauli_strings
-from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
-from src.analysis.analysis_canonical_patterns import load_20newsgroups_projected
-from src.models.exact_sim_classifier import ExactSIMClassifier
+from sklearn.model_selection import train_test_split
 
+from src.generators.spectral_pauli_generator import generate_spectral_pauli_strings
+from src.models.exact_sim_classifier import ExactSIMClassifier
+from src.utils.data_loader import load_20newsgroups_projected
+from src.utils.pauli_utils import generate_pauli_strings
 from src.utils.seeds import set_seed
-set_seed()
+
 
 # Mock the NoisySIMClassifier behavior but without noise for clean baseline comparison
 class BaselineSIMClassifier(ExactSIMClassifier):
@@ -23,7 +22,8 @@ class BaselineSIMClassifier(ExactSIMClassifier):
 def get_locality_basis(n_qubits, k=50):
     """
     Selects top-k Pauli strings based on lowest weight (Locality heuristic).
-    Tie-breaking is random.
+    Ties are broken deterministically: the sort is stable, so equal-weight
+    strings keep the lexicographic (I < X < Y < Z) order of generate_pauli_strings.
     """
     all_strings = generate_pauli_strings(n_qubits)
     # Calculate weights
@@ -48,7 +48,7 @@ def train_and_eval(name, strings, X_train, X_test, y_train, y_test, n_qubits=4):
     y_t = torch.tensor(y_train, dtype=torch.float64)
     X_test_t = torch.tensor(X_test, dtype=torch.float64)
     
-    for epoch in range(60):
+    for _ in range(60):
         optimizer.zero_grad()
         loss = criterion(model(X_t), y_t)
         loss.backward()
@@ -62,8 +62,8 @@ def train_and_eval(name, strings, X_train, X_test, y_train, y_test, n_qubits=4):
     f1 = f1_score(y_test, preds)
     try:
         auc = roc_auc_score(y_test, probs)
-    except:
-        auc = 0.5
+    except ValueError:  # only one class present in y_test: AUC is undefined
+        auc = float('nan')
         
     print(f"  Accuracy: {acc:.4f}")
     print(f"  F1 Score: {f1:.4f}")
@@ -105,4 +105,5 @@ def run_advanced_baselines():
         print(f"{name:<15} {acc:<10.4f} {f1:<10.4f} {auc:<10.4f}")
 
 if __name__ == "__main__":
+    set_seed()
     run_advanced_baselines()

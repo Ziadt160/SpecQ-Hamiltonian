@@ -5,9 +5,9 @@ Seeds: 5, epochs: 150
 Majority-class baseline (test): 0.8709
 
 arm                 accuracy     bal-acc        F1   train loss
-trained       0.9363 +-0.0030      0.8465    0.7461       0.2321
-frozen        0.9373 +-0.0020      0.8493    0.7507       0.2392
-none          0.9346 +-0.0040      0.8387    0.7363       0.2317
+trained       0.9394 +-0.0061      0.8585    0.7617       0.2331
+frozen        0.9377 +-0.0116      0.8382    0.7417       0.2425
+none          0.9387 +-0.0034      0.8581    0.7593       0.2300
 
 trained = circuit optimized (shipped model)
 frozen  = circuit fixed at random init, only w optimized
