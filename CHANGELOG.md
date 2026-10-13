@@ -13,6 +13,9 @@ produces.
 
 - **Third-party material.** The PDF of Tiblias et al. (2025) and two plain-text
   extractions of it. The paper is cited by its arXiv identifier instead.
+- **History rewritten.** Those three files, and three internal documents deleted
+  earlier, were purged from every commit. All commit IDs before this release changed;
+  re-clone, or reset existing clones to the new `origin/main`.
 - `pdf/` (copies, or superseded copies, of figures in `results/`); `figures/`
   (AI-generated concept images, unreferenced, whose labels misnamed the model variants —
   "Quantum Heisenberg-based Model" for HAM, "Sparse Indexing Method" for SIM); the unused
@@ -81,7 +84,7 @@ produces.
 
 ### Documentation
 
-- README: removed the dead link to an unpublished manuscript PDF and the arXiv badge;
+- README: removed a dead link to a PDF that is not in the repository, and the arXiv badge;
   fixed installation (Python ≥ 3.10) and data provenance; added a citation section.
   Corrected claims:
   - the Lasso "corroboration" is at chance level (86.4% overlap against 86.7% for a
@@ -160,8 +163,7 @@ the covariance default.
 
 ## [0.1.1] — 2026-07-28 — Verification and repair
 
-Corrections applied to the implementation, and the manuscript claims they affect.
-
+Corrections applied to the implementation.
 
 ### Correctness
 
@@ -267,9 +269,8 @@ systematically under-damps.
   widening as 2ⁿ. Values agree to 3.5e-18; the first ranking change is at position 136,
   exactly where the identically-zero strings begin, so live-string ordering is unchanged.
 
-  Note this is **not** an eigendecomposition. §VI.B of the manuscript describes selection
-  as one at O(2³ᴺ); no such routine exists, and `scipy.linalg` was imported but never
-  called.
+  Note this is **not** an eigendecomposition: no such routine exists, and
+  `scipy.linalg` was imported but never called.
 
 ### Packaging and structure
 
@@ -286,16 +287,3 @@ systematically under-damps.
   `scipy` and `seaborn` added (required but undeclared).
 - Hardcoded absolute `d:\Evoth Labs\...` paths replaced with package-relative resolution;
   output paths normalised so every experiment writes to the repository-root `results/`.
-
-### Manuscript corrections
-
-Pending in *Spectral Pauli Pruning*, all verified against the current code:
-
-| § | Claim | Correction |
-| :--- | :--- | :--- |
-| III.B Eq. 4 | Δ is a covariance difference | code computed second moments; now aligned |
-| VI.B | selection is an eigendecomposition at O(2³ᴺ) | no eigendecomposition exists; cost is O(4ⁿ·2²ⁿ) after the einsum fix |
-| Abstract | "83.49% with only **57.6%** of the full Pauli basis" | k=1737 of 4096 is **42.4%**; 57.6% is the compression |
-| V.B | Exact SIM 84.23% | committed run gives 0.8330 |
-| V.B | ⟨P⟩_θ provides a "non-trivial inductive bias" | that comparison confounds optimizer, scaling and bias term; controlled ablation finds no expressivity contribution |
-
